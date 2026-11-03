@@ -1,6 +1,8 @@
 output/
 build/
 dist/
+scripts/validate_live_out.txt
+tbh-reader.spec
 __pycache__/
 *.pyc
 re/
