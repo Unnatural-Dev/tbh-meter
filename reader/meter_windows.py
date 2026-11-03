@@ -98,7 +98,7 @@ PENDING_CLOSE_GRACE = 3.0
 # reader only logs/diags `partial`; the converter is the persisted spec). See docs/invariants/run-lifecycle.
 PARTIAL_CAPTURE_MIN = 0.95
 
-GAME_VERSION = "1.3.0"   # FALLBACK: the GameAssembly.dll build the reader was made against; the INSTALLED version comes from the game's Version.txt (_detect_game_version)
+GAME_VERSION = "1.3.2"   # FALLBACK: the GameAssembly.dll build the reader was made against; the INSTALLED version comes from the game's Version.txt (_detect_game_version)
 # raw/<id>.json: the LIVE format the reader emits (1 file per run). Bump ONLY when the SHAPE of the
 # output changes — NOT per game build (re-seed/address doesn't count). The converter (app) dispatches
 # on this value. Mirrors app/src/shared/raw-types.ts::RawRunV2. See [[invariants/schema-versioning]].
@@ -1130,8 +1130,10 @@ def run(hz, output_dir, debug=False):
         wave_now = wave_tot = None
         if status in ("success", "fail") and e is not None:
             la, ls = reader.ri32(e + StageClearLog.ACT), reader.ri32(e + StageClearLog.STAGE)
-            act = la if la is not None else act
-            stage = ls if ls is not None else stage
+            # Game 1.3.x: the log's +0x40 became a StageCache* (not act/stage ints) -> reads are
+            # garbage (e.g. "-1148231680-461"). Only trust plausible values; else keep the catalog's.
+            act = la if (la is not None and 1 <= la <= 200) else act
+            stage = ls if (ls is not None and 1 <= ls <= 200) else stage
             if status == "success":
                 clear_time = reader.ri32(e + StageClearLog.CLEAR_TIME) or 0
             else:
