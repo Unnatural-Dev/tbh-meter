@@ -5,7 +5,7 @@
 **A live DPS / Gold / EXP meter & run tracker overlay for [Task Bar Hero](https://store.steampowered.com/)**
 
 [![Latest release](https://img.shields.io/github/v/release/Unnatural-Dev/tbh-meter?label=latest&color=4c1)](https://github.com/Unnatural-Dev/tbh-meter/releases/latest)
-[![Installs](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FUnnatural-Dev%2Ftbh-meter%2Fbadges%2Finstalls.json&cacheSeconds=1800)](https://github.com/Unnatural-Dev/tbh-meter/releases)
+[![Downloads](https://img.shields.io/github/downloads/Unnatural-Dev/tbh-meter/total?label=downloads)](https://github.com/Unnatural-Dev/tbh-meter/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-0078d4)](https://github.com/Unnatural-Dev/tbh-meter/releases/latest)
 [![Star on GitHub](https://img.shields.io/github/stars/Unnatural-Dev/tbh-meter?style=social)](https://github.com/Unnatural-Dev/tbh-meter)
 
