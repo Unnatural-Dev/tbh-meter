@@ -75,7 +75,7 @@ always releasable. Everything lands through a pull request; nobody pushes to `ma
 
 You need **no access to this repo** to contribute — the standard open-source flow:
 
-1. **Fork** the repository (UI "Fork" button, or `gh repo fork mad-labs-org/tbh-meter --clone`).
+1. **Fork** the repository (UI "Fork" button, or `gh repo fork Unnatural-Dev/tbh-meter --clone`).
 2. In your fork, branch off `main` (`fix/…`, `feat/…`) and commit your work.
 3. **Open a pull request** against `main` here. If it addresses an existing issue, link it
    (`Closes #123` in the PR description) — encouraged, but not required.

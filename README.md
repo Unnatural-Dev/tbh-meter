@@ -4,15 +4,17 @@
 
 **A live DPS / Gold / EXP meter & run tracker overlay for [Task Bar Hero](https://store.steampowered.com/)**
 
-[![Latest release](https://img.shields.io/github/v/release/mad-labs-org/tbh-meter?label=latest&color=4c1)](https://github.com/mad-labs-org/tbh-meter/releases/latest)
-[![Installs](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmad-labs-org%2Ftbh-meter%2Fbadges%2Finstalls.json&cacheSeconds=1800)](https://github.com/mad-labs-org/tbh-meter/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-0078d4)](https://github.com/mad-labs-org/tbh-meter/releases/latest)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/viniarruda)
+[![Latest release](https://img.shields.io/github/v/release/Unnatural-Dev/tbh-meter?label=latest&color=4c1)](https://github.com/Unnatural-Dev/tbh-meter/releases/latest)
+[![Installs](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FUnnatural-Dev%2Ftbh-meter%2Fbadges%2Finstalls.json&cacheSeconds=1800)](https://github.com/Unnatural-Dev/tbh-meter/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-0078d4)](https://github.com/Unnatural-Dev/tbh-meter/releases/latest)
+[![Star on GitHub](https://img.shields.io/github/stars/Unnatural-Dev/tbh-meter?style=social)](https://github.com/Unnatural-Dev/tbh-meter)
 
 <img src=".github/assets/meter-hero.png" width="820" alt="TBH Meter — the Runs history window with the live overlay docked at the bottom-left">
 
 
 _Unaffiliated, open-source fan project — not made by or endorsed by the game's developer._
+
+_A maintained fork of [mad-labs-org/tbh-meter](https://github.com/mad-labs-org/tbh-meter), maintained by [Unnatural-Dev](https://github.com/Unnatural-Dev). Original project by Mad Labs._
 
 </div>
 
@@ -37,7 +39,7 @@ Every finished run is also saved with full detail — result (success / fail / a
 
 > **Windows 10+ only.** The reader uses Windows APIs to read game memory.
 
-1. Download **`tbh-meter-Setup-<version>.exe`** from the [**latest release**](https://github.com/mad-labs-org/tbh-meter/releases/latest).
+1. Download **`tbh-meter-Setup-<version>.exe`** from the [**latest release**](https://github.com/Unnatural-Dev/tbh-meter/releases/latest).
 2. Run the installer — **no admin rights needed** (it installs per-user).
 3. Launch Task Bar Hero and TBH Meter in any order. The first attach takes **1–2 minutes**; after that, live stats appear automatically.
 
@@ -101,17 +103,11 @@ The app bundles a small **game-data snapshot** (committed under [`data/`](./data
 
 Issues and PRs are welcome — start with [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for setup, the test gates, and the release flow, and the [Code of Conduct](./.github/CODE_OF_CONDUCT.md). Found a security issue? See [SECURITY.md](./.github/SECURITY.md). Come say hi on [Discord](https://discord.gg/eYqUkxu3).
 
-We are migrating the board project to a public one: https://github.com/orgs/mad-labs-org/projects/10/views/1. Feel free to contribute!
+To contribute, open an [issue](https://github.com/Unnatural-Dev/tbh-meter/issues) or a [pull request](https://github.com/Unnatural-Dev/tbh-meter/pulls) on [Unnatural-Dev/tbh-meter](https://github.com/Unnatural-Dev/tbh-meter).
 
 ## Support
 
-If TBH Meter helps your runs, consider buying the team a coffee — it keeps development going.
-
-<div align="center">
-
-[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="45">](https://buymeacoffee.com/viniarruda)
-
-</div>
+If TBH Meter helps your runs, please leave a ⭐ on [the repo](https://github.com/Unnatural-Dev/tbh-meter) — it helps others find it.
 
 ## License
 
