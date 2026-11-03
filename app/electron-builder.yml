@@ -43,7 +43,7 @@ files:
 # and strands every not-yet-updated install. See meter-3-ship.yml.
 publish:
   provider: github
-  owner: mad-labs-org
+  owner: Unnatural-Dev # FORK: installs auto-update from THIS fork's Releases (upstream: mad-labs-org)
   repo: tbh-meter
 
 win:

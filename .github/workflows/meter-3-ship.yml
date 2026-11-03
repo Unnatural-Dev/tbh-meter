@@ -293,7 +293,7 @@ jobs:
           TAG: ${{ needs.resolve.outputs.stable_tag }}
           VERSION: ${{ needs.resolve.outputs.version }}
         run: |
-          RELEASES_REPO="mad-labs-org/tbh-meter"
+          RELEASES_REPO="${{ github.repository }}"
           # Installed apps resolve "Latest" through the anonymous 302 on /releases/latest
           # (electron-updater reads the redirect's tag, then pulls latest.yml under it).
           # The flip above is an API write; what GitHub SERVES can lag it by a moment — and
@@ -362,7 +362,7 @@ jobs:
           jq -n \
             --arg title "TBH Meter v$VERSION" \
             --arg desc "$DESC" \
-            --arg url "https://github.com/mad-labs-org/tbh-meter/releases/tag/$TAG" \
+            --arg url "https://github.com/${{ github.repository }}/releases/tag/$TAG" \
             '{
               username: "TBH Helper",
               embeds: [{
@@ -401,7 +401,7 @@ jobs:
             echo "| **Latest tag** | \`$STABLE_TAG\` |"
             echo
             echo "Installed apps self-update via electron-updater (\`/releases/latest\`)."
-            echo "Release: https://github.com/mad-labs-org/tbh-meter/releases/tag/$STABLE_TAG"
+            echo "Release: https://github.com/${{ github.repository }}/releases/tag/$STABLE_TAG"
             if [ "$TAG_PUSHED" != "true" ]; then
               echo
               echo "> ℹ️ This was an idempotent re-ship (tag already at this commit), so the Discord"
