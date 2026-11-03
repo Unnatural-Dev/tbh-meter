@@ -119,7 +119,7 @@ export const DICT: Partial<Record<DictKey, string>> = {
   "settings.community": "Спільнота",
   "settings.communityDesc": "Баги та пропозиції — у Discord спільноти.",
   "settings.discordBtn": "Баги та фідбек у Discord",
-  "settings.createdBy": "Створено Mad Labs",
+  "settings.maintainedBy": "Підтримується {name}",
   "settings.checkUpdates": "Перевірити оновлення",
   "settings.updateChecking": "Перевірка оновлень…",
   "settings.upToDate": "У вас найновіша версія",

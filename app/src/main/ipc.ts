@@ -26,7 +26,7 @@ import {
   checkForUpdates,
 } from "./auto-update.js";
 import { requestSessionReset } from "./session-stats.js";
-import { DISCORD_INVITE_URL, GITHUB_ORG_URL } from "./config.js";
+import { isAllowedExternalUrl } from "./external-links.js";
 import { broadcast } from "./broadcast.js";
 
 interface IpcDeps {
@@ -189,7 +189,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   // Open an allowlisted URL externally. Validate the target so the renderer can
   // NOT ask the main process to open an arbitrary URL.
   ipcMain.on("meter:open-external", (_event, url: unknown) => {
-    if (url !== DISCORD_INVITE_URL && url !== GITHUB_ORG_URL) return;
+    if (!isAllowedExternalUrl(url)) return;
     void shell.openExternal(url);
   });
 

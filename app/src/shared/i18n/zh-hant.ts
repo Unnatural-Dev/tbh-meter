@@ -116,7 +116,7 @@ export const DICT: Partial<Record<DictKey, string>> = {
   "settings.community": "社群",
   "settings.communityDesc": "Bug 回報與功能建議請到社群 Discord。",
   "settings.discordBtn": "在 Discord 回報 Bug 與建議",
-  "settings.createdBy": "由 Mad Labs 製作",
+  "settings.maintainedBy": "維護者：{name}",
   "settings.checkUpdates": "檢查更新",
   "settings.updateChecking": "正在檢查更新…",
   "settings.upToDate": "已是最新版本",
