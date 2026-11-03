@@ -1,0 +1,22 @@
+[ok] attached (pid 21004) | build 1.3.2 | fp 1.3.2-0x6adf02c0-0x6d70000
+[..] resolving via the seed (fast path, ~s)...
+[ok] resolved in 7s
+
+   ↳ [diag sm]  total=455 hk_accept=1 carriers=1 picked=0x1cdb509ee00
+   ↳ [diag msm] msm=0x1cdaffcd280 listPtr=0x1cdb509c930 rawCount=18 firstUnit=0x1cdc859b000 firstHC=0x1cdc8b98d20
+===== LIVE VALIDATION (build 1.3.2) =====
+  [PASS] calib/seed    — seed covers fp (idx_ut=1099)
+  [PASS] gold          — klass=0x1cb01d2e7a0 live=11865581161
+  [PASS] party-live    — sm=ok deployed=3 keys=[201, 401, 501]
+  [PASS] hero-class    — classIds=[4, 5, 2]
+  [PASS] save-build    — psd=ok saveGold=59540517 saveHeroes=5
+  [PASS] build-record  — heroes=5 withGearOrSkills=5 snapshot(runes/inv/stash)=[253, 0, 0]
+  [PASS] xp-live       — hk401:lv101=save101? xp=3.937e+10 hk501:lv40=save40? xp=1.596e+07 hk201:lv101=save101? xp=1.943e+11
+  [PASS] party-slots   — slots={401: 0, 501: 1, 201: 2} herolist_index={401: 0, 501: 1, 201: 2}
+  [PASS] dps           — msm=ok monsters=18 withHpMax=18
+  [PASS] stats         — heroesWithStats=3 sizes=[82, 82, 82]
+  [PASS] stage         — live=3309 (in catalog) snapshot=6938016
+  [PASS] run-cycle     — lm=ok logList=ok size=414
+  [PASS] catalogs      — stages=183 (ACTBOSS=12) items=7045 heroes=21
+
+[OK] ✅ ALL PASS — the build resolves every metric live via the seed. Safe to ship.
