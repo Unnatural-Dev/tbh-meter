@@ -9,7 +9,6 @@ import struct
 
 import pytest
 
-import config.offsets as off
 from config.offsets import (Array, Unit, Monster, UnitHealthController, StageManager,
                             MonsterSpawnManager, HeroRuntime, HeroInfoData)
 from game import field_calib
@@ -126,7 +125,7 @@ def test_discover_hero_list_and_cache():
     keys = [401, 301, 201]  # >= 2 distinct, all in HERO_CAT
     r.wptr(sm + hl_off, hl)
     r.wi32(hl + Array.MAX_LENGTH, len(heroes))
-    for i, (ha, hk) in enumerate(zip(heroes, keys)):
+    for i, (ha, hk) in enumerate(zip(heroes, keys, strict=True)):
         r.wptr(hl + Array.DATA + i * 8, ha)
         uf = ha + 0x8000
         info = uf + 0x4000
