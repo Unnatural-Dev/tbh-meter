@@ -44,7 +44,7 @@ from metrics.gold import (resolve_combat_gold_klass, combat_gold_klass_ok,
                           gold_index_by_structure)
 from metrics import xp
 from metrics.dps import DpsTracker
-from game import build, save, drops
+from game import build, save, drops, waves
 from game.models import live_monsters as read_live_monsters, live_stage_key as read_live_stage_key
 
 TARGETS = ["MonsterSpawnManager", "LogManager", "StageClearLog", "StageFailedLog",
@@ -1057,6 +1057,8 @@ def run(hz, output_dir, debug=False):
     print("Measuring per run (success/fail) — Ctrl+C to exit.\n")
     # Live drop catalog (box keys/rates/cooldowns) for the app's chest features — once per resolve.
     write_drop_catalog(reader, output_dir, stage_info, game_version)
+    # Per-stage (WaveAmount, WaveMonsterAmount) for the Brevity-corrected mob total (game.waves).
+    stage_waves = waves.read_stage_waves(reader, _LAST_CATALOG_INSTANCES.get("StageInfoData"))
     _emit_status("ready")   # app: reader attached + resolved -> splash closes
 
     snap_dir = output_dir
@@ -1114,6 +1116,9 @@ def run(hz, output_dir, debug=False):
                 "party_slots": build.read_party_slots(reader, sm, hero_cat),
                 # The run's deaths/revives/who-killed (heroKey-keyed; from the HeroDie/Resurrection logs).
                 "deaths": {}, "revives": {}, "killers": {},
+                # Waves removed by the account's Rune of Brevity nodes (game.waves) — read ONCE per run
+                # (runes only change between runs); feeds the real mob total at close + in live.json.
+                "wave_reduction": waves.wave_reduction(build.read_runes(reader, p)),
                 "stage_key": None, "adopt_until": time.time() + 3.0}
 
     R = new_run()
@@ -1177,7 +1182,7 @@ def run(hz, output_dir, debug=False):
         si = stage_info.get(stage_key)
         act = si[0] if si else None
         stage = si[1] if si else None
-        total = (si[2] + 1) if si else None
+        total = waves.total_mobs(si, stage_waves.get(stage_key), R["wave_reduction"])
         mode = DIFF_NAMES.get(si[3], "?") if si else "?"
         clear_time = 0
         wave_now = wave_tot = None
@@ -1449,6 +1454,8 @@ def run(hz, output_dir, debug=False):
                                  die_class, res_class) = rr
                                 csd = save.pick_live_csd(reader, csd_list, stage_info)
                                 write_drop_catalog(reader, output_dir, stage_info, game_version)
+                                stage_waves = waves.read_stage_waves(
+                                    reader, _LAST_CATALOG_INSTANCES.get("StageInfoData"))
                                 sm = save.pick_live_sm(reader, sm_list, hero_cat)
                                 _smd = build.describe_sm_candidates(reader, sm_list, sm, hero_cat)
                                 diag(f"[party-pick] re-attach candidates={_smd['total']} "
@@ -1509,8 +1516,8 @@ def run(hz, output_dir, debug=False):
             elif cur_key is None and csd:
                 cur_key = reader.ri32(csd + CommonSaveData.CURRENT_STAGE_KEY)
             _si = stage_info.get(cur_key)
-            # +1 = the boss (StageInfoData counts only the horde mobs; we also kill the boss)
-            total_mobs = (_si[2] + 1) if _si else None
+            # horde (minus the waves the account's Brevity runes remove) + 1 for the boss — game.waves
+            total_mobs = waves.total_mobs(_si, stage_waves.get(cur_key), R["wave_reduction"])
             stage_lbl = f"{_si[0]}-{_si[1]}" if _si else "?"
             mode_txt = DIFF_NAMES.get(_si[3], "?") if _si else "?"
 
