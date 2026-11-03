@@ -12,6 +12,8 @@ Covers:
   - _resolve_fast builds the right tuple (14-shape, PSD/CSD/SM from the targeted backref, MSM/LM from rv).
 """
 
+import pytest
+
 import meter_windows as mw
 
 FP = "1.00.07-0x6a203f51-0x62ea000"
@@ -188,6 +190,11 @@ class TestResolveFast:
     delegates (typeinfo.table_base, resolve_via_rva, gold by-index) — their logic is tested
     in test_typeinfo/test_resolver_rva/test_gold."""
 
+    @pytest.fixture(autouse=True)
+    def _isolate_catalog_instances(self, monkeypatch):
+        # _resolve_fast mutates the module-global drop-catalog stash; keep it per-test.
+        monkeypatch.setattr(mw, "_LAST_CATALOG_INSTANCES", {})
+
     def _rv(self):
         classes = {n: {hash(n) & 0xffff} for n in mw.TARGETS}
         instances = {n: [] for n in mw.TARGETS}
@@ -205,7 +212,7 @@ class TestResolveFast:
         monkeypatch.setattr(mw, "resolve_combat_gold_klass_by_index", lambda r, tb, idx: 0x6010)
         monkeypatch.setattr(mw, "regions", lambda r: [(0x1000, 0x100)])
         seen = {}
-        def _io(reader, regs, k_by_name):
+        def _io(reader, regs, k_by_name, cap=4000):
             seen["k_by_name"] = k_by_name
             return {"PlayerSaveData": [0x111], "CommonSaveData": [0x222], "StageManager": [0x333]}
         monkeypatch.setattr(mw, "instances_of", _io)
@@ -216,11 +223,47 @@ class TestResolveFast:
         assert msm == 0xAAA and lm == 0xBBB           # MSM/LM still from rv (bbwf size-validated)
         # PSD/CSD/SM from the backref (NOT from the rv instances, which for these are [])
         assert psd == [0x111] and csd == [0x222] and sm_list == [0x333]
-        # the backref uses the CLASS K's of the 3, not the singletons
+        # the backref uses the CLASS K's of the 3 (+ the 2 drop-catalog classes, same sweep), NOT the
+        # singletons
         assert seen["k_by_name"] == {n: next(iter(rv[0][n])) for n in
-                                     ("PlayerSaveData", "CommonSaveData", "StageManager")}
+                                     ("PlayerSaveData", "CommonSaveData", "StageManager",
+                                      "StageInfoData", "ItemInfoData")}
         assert (si, ic, hc) == (CALIB["stage_info"], CALIB["item_cat"], CALIB["hero_cat"])
         assert gold == 0x6010
+
+    def test_catalog_lists_uncapped_backref_lists_trimmed(self, monkeypatch):
+        """The drop catalog needs EVERY ItemInfoData (~7.8k live on 1.3.2): the sweep raises the cap
+        for the catalogs (the 4000 default silently dropped ~100 of 140 box cooldowns), while
+        PSD/CSD/SM stay bounded at the historical cap."""
+        monkeypatch.setattr(mw.typeinfo, "table_base", lambda r, ga, anchor: 0x9000)
+        rv = self._rv()
+        monkeypatch.setattr(mw, "resolve_via_rva", lambda r, tb, idx, tg, sg: rv)
+        monkeypatch.setattr(mw, "resolve_combat_gold_klass_by_index", lambda r, tb, idx: 0x6010)
+        monkeypatch.setattr(mw, "regions", lambda r: [(0x1000, 0x100)])
+        seen = {}
+        def _io(reader, regs, k_by_name, cap=4000):
+            seen["cap"] = cap
+            return {n: list(range(1, min(cap, 9000) + 1)) for n in k_by_name}
+        monkeypatch.setattr(mw, "instances_of", _io)
+        out = mw._resolve_fast(None, 0x7ff800000000, CALIB)
+        assert seen["cap"] == mw.CATALOG_INSTANCE_CAP > 7837
+        assert len(mw._LAST_CATALOG_INSTANCES["ItemInfoData"]) == 9000
+        assert len(out[5]) == len(out[4]) == len(out[9]) == mw.BACKREF_INSTANCE_CAP
+
+    def test_scan_path_stashes_catalog_instances(self, monkeypatch):
+        """The slow path stashes pass3's StageInfoData/ItemInfoData lists (uncapped) for the drop
+        catalog too, replacing whatever an earlier resolve left."""
+        mw._LAST_CATALOG_INSTANCES["ItemInfoData"] = [0xDEAD]          # stale, from a prior resolve
+        inst = {n: [] for n in mw.TARGETS}
+        inst.update(StageInfoData=[0x10, 0x20], ItemInfoData=list(range(1, 7838)))
+        monkeypatch.setattr(mw, "regions", lambda r: [])
+        monkeypatch.setattr(mw, "resolve", lambda r, regs, tg: ({n: set() for n in tg}, inst))
+        monkeypatch.setattr(mw, "_pick_list_singleton", lambda *a: None)
+        monkeypatch.setattr(mw, "_read_catalogs", lambda r, i: ({}, {}, {}))
+        monkeypatch.setattr(mw, "resolve_combat_gold_klass", lambda r, psd: None)
+        mw._resolve_scan(None)
+        assert mw._LAST_CATALOG_INSTANCES == {"StageInfoData": [0x10, 0x20],
+                                              "ItemInfoData": list(range(1, 7838))}
 
     def test_null_table_base_returns_none(self, monkeypatch):
         monkeypatch.setattr(mw.typeinfo, "table_base", lambda r, ga, anchor: None)

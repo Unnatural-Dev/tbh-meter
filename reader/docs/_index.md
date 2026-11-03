@@ -60,6 +60,7 @@ How it works and how to maintain it: [README](README.md).
 - [[reference/damage-model]] — damage enums/structs (`MODTYPE`/`MODSOURCE`/`StatModifier`/`EDamageAttribute`/`EEquipClassType`); structure, not the calculation · `config/offsets.py`
 - [[reference/extraction-viability]] — read-only matrix per domain (viable/partial/unviable) and why: PLAIN vs Obscured · `game/save.py`
 - [[reference/value-inventory]] — what the reader READS, by source: LIVE (real-time) vs SAVE (fallback) vs TODO; points at the reader for each value · `metrics/gold.py`
+- [[reference/drop-catalog]] — live per-stage box keys + drop rates (ppm) and per-box DropCooldown → `drop_catalog.json` for the app's chest features; chest cooldown wrong / boxes per hour / stale box key after patch · `game/drops.py`
 
 ## Guides
 <!-- how to make recurring changes -->
