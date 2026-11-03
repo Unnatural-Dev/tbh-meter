@@ -21,7 +21,7 @@ The four signatures:
 Results are cached per-fingerprint IN MEMORY for the session (CALIBRATED dict). Discovery is
 read-only; it writes nothing to the game and nothing to disk.
 """
-from config.offsets import (Array, List, Unit, Monster, UnitHealthController,
+from config.offsets import (Array, Unit, Monster, UnitHealthController,
                             StageManager, MonsterSpawnManager, HeroRuntime, HeroInfoData)
 
 # Scan windows (bytes), generous enough to absorb several future recompiles around each current value.
@@ -84,7 +84,6 @@ def discover_hp_max(reader, msm):
         return None
     tally = {}
     sampled = 0
-    import struct
     for u in mons[:8]:
         hc = _rptr(reader, u + Unit.HEALTH_CONTROLLER)
         if not hc:

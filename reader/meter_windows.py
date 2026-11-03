@@ -44,13 +44,47 @@ from metrics.gold import (resolve_combat_gold_klass, combat_gold_klass_ok,
                           gold_index_by_structure)
 from metrics import xp
 from metrics.dps import DpsTracker
-from game import build, save
+from game import build, save, drops
 from game.models import live_monsters as read_live_monsters, live_stage_key as read_live_stage_key
 
 TARGETS = ["MonsterSpawnManager", "LogManager", "StageClearLog", "StageFailedLog",
            "GetBoxLog", "HeroDieLog", "ResurrectionLog",
            "CommonSaveData", "CurrencySaveData", "HeroSaveData", "StageInfoData",
            "PlayerSaveData", "ItemInfoData", "HeroInfoData", "StageManager"]
+
+# StageInfoData/ItemInfoData instances from the LATEST resolve (fast-path backref or scan pass3), kept
+# OUT of resolve_all's frozen 14-tuple. Consumed once per resolve by write_drop_catalog. Module-level
+# (not threaded through) on purpose: the tuple shape is load-bearing for the re-attach + every test.
+_LAST_CATALOG_INSTANCES = {}
+# instances_of caps per class (§10). The fast-path sweep raises it for the CATALOG classes
+# (ItemInfoData ~7.8k instances live on 1.3.2) and trims the save/manager lists back to the old bound.
+CATALOG_INSTANCE_CAP = 20000
+BACKREF_INSTANCE_CAP = 4000
+
+
+def write_drop_catalog(reader, output_dir, stage_info, game_version):
+    """Read the live drop catalog (per-stage box keys + rates, per-box cooldowns; game.drops) from the
+    instances the latest resolve collected and write <output_dir>/drop_catalog.json for the app.
+    never-raises; returns the stage count written (0 = nothing written: any earlier drop_catalog.json
+    stays on disk, so the app must gate on its gameVersion before preferring it over the bundled data)."""
+    try:
+        inst = _LAST_CATALOG_INSTANCES
+        if not inst.get("StageInfoData") or not inst.get("ItemInfoData"):
+            diag("[drops] catalog instances missing — drop_catalog.json NOT written")
+            return 0
+        cds = drops.read_box_cooldowns(reader, inst["ItemInfoData"])
+        sd = drops.read_stage_drops(reader, inst["StageInfoData"])
+        doc = drops.build_catalog(sd, cds, stage_info, game_version)
+        n = len(doc["stages"])
+        if n and _write_atomic(os.path.join(output_dir, "drop_catalog.json"),
+                               json.dumps(doc, separators=(",", ":"))):
+            diag(f"[drops] drop_catalog.json written: stages={n} boxes={len(cds)}")
+            return n
+        diag(f"[drops] drop_catalog.json NOT written (stages={n})")
+        return 0
+    except Exception as e:
+        diag(f"[drops] catalog read failed: {type(e).__name__}: {e}")
+        return 0
 
 
 def _suffix_int(s):
@@ -337,17 +371,20 @@ def _append(path, line):
 def _write_atomic(path, text):
     """Writes `text` to `path` ATOMICALLY: writes to a `.tmp` and renames (os.replace is atomic on the
     same filesystem). The app may be reading the raw/ folder at any moment -> it must never see a
-    half-written file. Best-effort: on failure, cleans up the .tmp and leaves no junk."""
+    half-written file. Best-effort: on failure, cleans up the .tmp and leaves no junk. Returns True
+    when the file landed (best-effort callers may ignore it)."""
     tmp = path + ".tmp"
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(text)
         os.replace(tmp, path)
+        return True
     except Exception:
         try:
             os.remove(tmp)
         except OSError:
             pass
+        return False
 
 
 def build_raw_record(*, ts_ms, run_outcome, game_version, duration,
@@ -741,9 +778,21 @@ def _resolve_fast(reader, ga_base, calib):
     # exactly as in the slow path. An empty PSD (e.g. not logged in) does NOT fail the fast path — it's the
     # same degradation the scan would have (pick_live_psd→None → empty build for that run only, §6).
     _tb = time.time()
+    # ONE sweep also collects StageInfoData/ItemInfoData instances for the DROP CATALOG (box keys,
+    # rates, per-box cooldowns — game.drops). Single-sweep: extra needles cost ~0 (measured live on
+    # 1.3.2: 3 classes 7.69s vs 5 classes 7.66s). The catalog lists stay OFF the 14-tuple (its shape is
+    # frozen — the re-attach unpacks it); they ride in _LAST_CATALOG_INSTANCES for write_drop_catalog.
+    _backref = ("PlayerSaveData", "CommonSaveData", "StageManager")
+    _catalog = tuple(n for n in ("StageInfoData", "ItemInfoData") if classes.get(n))
     insts = instances_of(reader, regions(reader),
-                         {name: next(iter(classes[name])) for name in
-                          ("PlayerSaveData", "CommonSaveData", "StageManager")})
+                         {name: next(iter(classes[name])) for name in _backref + _catalog},
+                         cap=CATALOG_INSTANCE_CAP)
+    _LAST_CATALOG_INSTANCES.clear()
+    _LAST_CATALOG_INSTANCES.update({n: insts.get(n, []) for n in _catalog})
+    # The raised cap is for the catalogs only (ItemInfoData has ~7.8k instances on 1.3.2; the old
+    # 4000 default silently dropped half the boxes). PSD/CSD/SM keep their historical §10 bound.
+    for n in _backref:
+        insts[n] = insts.get(n, [])[:BACKREF_INSTANCE_CAP]
     print(f"[calib] fast path PSD/CSD/StageManager backref in {time.time() - _tb:.1f}s "
           f"(PSD={len(insts['PlayerSaveData'])} CSD={len(insts['CommonSaveData'])} "
           f"SM={len(insts['StageManager'])})")
@@ -779,6 +828,8 @@ def _resolve_scan(reader):
     csd_list = list(inst.get("CommonSaveData", []))
     psd_list = list(inst.get("PlayerSaveData", []))
     sm_list = list(inst.get("StageManager", []))
+    _LAST_CATALOG_INSTANCES.clear()
+    _LAST_CATALOG_INSTANCES.update({n: list(inst.get(n, [])) for n in ("StageInfoData", "ItemInfoData")})
     stage_info, item_cat, hero_cat = _read_catalogs(reader, inst)
     # Live gold: resolves the AggregateManager klass by STRUCTURE (name-free; see metrics.gold).
     # All gold logic lives in gold.py — here (and in the rest of the meter) we ONLY call.
@@ -1004,6 +1055,8 @@ def run(hz, output_dir, debug=False):
     diag(f"[gold] klass={hex(gold_klass) if gold_klass else None} "
          f"live={combat_gold_live(reader, gold_klass) if gold_klass else None}")
     print("Measuring per run (success/fail) — Ctrl+C to exit.\n")
+    # Live drop catalog (box keys/rates/cooldowns) for the app's chest features — once per resolve.
+    write_drop_catalog(reader, output_dir, stage_info, game_version)
     _emit_status("ready")   # app: reader attached + resolved -> splash closes
 
     snap_dir = output_dir
@@ -1395,6 +1448,7 @@ def run(hz, output_dir, debug=False):
                                  stage_info, item_cat, hero_cat, sm_list, gold_klass, gb_class,
                                  die_class, res_class) = rr
                                 csd = save.pick_live_csd(reader, csd_list, stage_info)
+                                write_drop_catalog(reader, output_dir, stage_info, game_version)
                                 sm = save.pick_live_sm(reader, sm_list, hero_cat)
                                 _smd = build.describe_sm_candidates(reader, sm_list, sm, hero_cat)
                                 diag(f"[party-pick] re-attach candidates={_smd['total']} "

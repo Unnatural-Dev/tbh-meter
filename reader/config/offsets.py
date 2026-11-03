@@ -313,6 +313,12 @@ class ItemInfoData:                    # catalog
     GRADE = 0x38                       # EGradeType
     PARTS = 0x3C                       # EItemParts (slot)
     LEVEL = 0x6C
+    # Box items only: the per-box drop COOLDOWN in seconds (the game's DropCooldown column).
+    # LIVE-CONFIRMED 1.3.2: Normal Monster Box 1-3 = 120, Monster Box LvNN = 180, Contaminated
+    # monster = 240, Stage Boss Box 4/5/7 = 120/180/240, Stage Boss LvNN = 300, Contaminated
+    # stage = 360, Act Boss = 0 (ungated). Non-box items hold unrelated data here — only read
+    # it for 91xxxx/92xxxx/93xxxx keys (game.drops.read_drop_catalog gates that).
+    DROP_COOLDOWN = 0x68
 
 
 class HeroInfoData:                    # catalog
@@ -328,6 +334,12 @@ class StageInfoData:                   # catalog (currentStageKey encodes the mo
     STAGE_NO = 0x4C
     WAVE_AMOUNT = 0x54
     WAVE_MOB_AMOUNT = 0x58
+    # Drop table (LIVE-CONFIRMED 1.3.2 against the datamined stages.json: 1101 -> 910011 @160000 /
+    # 920011 @1000000; 2308 -> 910501 @15000 / 920501 @150000). Rates are PER MILLION (ppm).
+    MONSTER_DROP_KEY = 0x68            # monster (gray) box item key, 91xxxx
+    MONSTER_DROP_RATE = 0x70           # per-kill chance, ppm
+    BOSS_DROP_RATE = 0x74              # stage-boss chance, ppm
+    BOSS_DROP_KEY = 0x78               # stage/act boss box item key, 92xxxx / 93xxxx
 
 
 # ----- hero progression runtime (reached via Unit.CACHE) -----
