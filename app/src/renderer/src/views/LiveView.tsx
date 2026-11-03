@@ -381,8 +381,14 @@ function Bar({
   return (
     <div className={cn("h-1 overflow-hidden rounded-full bg-surface-600", className)}>
       {pct != null && (
+        // PERF: NO transition here, on purpose. This bar re-targets on every ~1s live tick, so any
+        // transition keeps the window animating ~70% of the time — and the live overlay is a
+        // TRANSPARENT always-on-top window, where every animated frame forces a full-window
+        // recomposite in the GPU process regardless of what is animated (width OR transform).
+        // Measured on the live overlay: width transition ≈31% of a core, transform ≈31% (GPU
+        // 28%), no transition ≈5%. A 1 Hz step is visually fine for a mob counter.
         <span
-          className="block h-full rounded-full bg-gradient-to-r from-brand-600 to-brand-400 transition-[width] duration-700 ease-out"
+          className="block h-full rounded-full bg-gradient-to-r from-brand-600 to-brand-400"
           style={{ width: `${pct}%` }}
         />
       )}

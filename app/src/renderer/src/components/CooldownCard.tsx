@@ -60,11 +60,14 @@ export function CooldownCard({ boxKey, cd, now, cooldownMs, variant = "full", on
   const remove = available ? onUnpin : onDismiss;
   const removeTitle = available ? t("cooldowns.unpin") : t("cooldowns.remove");
 
-  // Full-bleed draining fill, behind everything. Linear 1s transition matches the 1s tick.
+  // Full-bleed draining fill, behind everything. PERF: steps at the 1s tick with NO transition —
+  // a 1s-linear width transition on a 1s tick animates 100% of the time, and in the transparent
+  // live overlay every animated frame is a full-window GPU recomposite (~25-30% of a core, see
+  // LiveView's Bar). A 1 Hz step on a 13-minute drain is visually indistinguishable.
   const fill = (
     <span
       aria-hidden
-      className="absolute inset-y-0 left-0 z-0 bg-sky-500/15 transition-[width] duration-1000 ease-linear"
+      className="absolute inset-y-0 left-0 z-0 bg-sky-500/15"
       style={{ width: `${Math.max(0, Math.min(1, frac)) * 100}%` }}
     />
   );
