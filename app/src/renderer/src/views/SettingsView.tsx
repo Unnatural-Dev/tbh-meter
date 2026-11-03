@@ -14,6 +14,7 @@ import {
 import type { AppSettings, UpdateStatus } from "../../../shared/ipc-types.js";
 import { FONT_SCALE_MIN, FONT_SCALE_MAX, clampFontScale } from "../../../shared/ipc-types.js";
 import { COUNT_FLOOR_SEC } from "../../../shared/run-types.js";
+import { MAINTAINER_NAME, MAINTAINER_URL } from "../../../shared/project-info.js";
 import { AUTO_LOCALE, LOCALES } from "../../../shared/i18n/index.js";
 import { clampMinDuration } from "~/lib/run-filter";
 import {
@@ -174,10 +175,10 @@ export function SettingsView({ settings, onSettingsChange }: SettingsViewProps) 
             tbh-meter <span className="tabular-nums text-zinc-400">v{version ?? "…"}</span>
             {" · "}
             <button
-              onClick={() => window.meter.openExternal("https://github.com/mad-labs-org")}
+              onClick={() => window.meter.openExternal(MAINTAINER_URL)}
               className="cursor-pointer underline-offset-2 transition-colors hover:text-brand-300 hover:underline"
             >
-              {t("settings.createdBy")}
+              {t("settings.maintainedBy", { name: MAINTAINER_NAME })}
             </button>
           </p>
           {/* Manual check — only on installs that can self-update, and only when no

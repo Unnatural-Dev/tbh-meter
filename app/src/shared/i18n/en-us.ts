@@ -124,7 +124,7 @@ export const DICT = {
   "settings.community": "Community",
   "settings.communityDesc": "Bug reports and feature requests live in the community Discord.",
   "settings.discordBtn": "Bugs & feedback on Discord",
-  "settings.createdBy": "Created by Mad Labs",
+  "settings.maintainedBy": "Maintained by {name}",
   "settings.checkUpdates": "Check for updates",
   "settings.updateChecking": "Checking for updates…",
   "settings.upToDate": "On the latest version",

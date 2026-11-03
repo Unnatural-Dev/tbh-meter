@@ -118,7 +118,7 @@ export const DICT: Partial<Record<DictKey, string>> = {
   "settings.community": "Communauté",
   "settings.communityDesc": "Bugs et suggestions vivent sur le Discord de la communauté.",
   "settings.discordBtn": "Bugs & retours sur Discord",
-  "settings.createdBy": "Créé par Mad Labs",
+  "settings.maintainedBy": "Maintenu par {name}",
   "settings.checkUpdates": "Rechercher des mises à jour",
   "settings.updateChecking": "Recherche de mises à jour…",
   "settings.upToDate": "Sur la dernière version",

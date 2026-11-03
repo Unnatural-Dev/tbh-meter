@@ -6,5 +6,5 @@
 /** Community Discord invite (footer/settings "Bugs & feedback" button). */
 export const DISCORD_INVITE_URL = "https://discord.gg/eYqUkxu3";
 
-/** The project's GitHub org (Settings footer "created by" link). */
-export const GITHUB_ORG_URL = "https://github.com/mad-labs-org";
+/** The maintainer's GitHub profile (Settings footer "Maintained by" link) — single source in shared/. */
+export { MAINTAINER_URL } from "../shared/project-info.js";
