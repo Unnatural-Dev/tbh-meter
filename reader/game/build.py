@@ -479,7 +479,7 @@ def _list_or_none(reader, list_obj, cap):
     return [p for p in struct.unpack(f"<{size}Q", b) if p]
 
 
-def _read_runes(reader, psd):
+def read_runes(reader, psd):
     """[{key, level}] of the runes (PlayerSaveData.RUNES). None if the list DIDN'T READ (never a silent [])."""
     try:
         raw = _list_or_none(reader, reader.rptr(psd + PlayerSaveData.RUNES), 5000)
@@ -533,10 +533,10 @@ def read_account_snapshot(reader, psd, item_cat):
     no Obscured). NEVER-RAISES (each block guarded -> None on failure) so it doesn't take down close_run."""
     if not psd:
         return None, None, None                            # no live save -> all NOT-READ (err)
-    runes = _read_runes(reader, psd)
+    runes = read_runes(reader, psd)
     # uid2item from ITEMS: None if ITEMS didn't read -> inv/stash become err (not a silent []). HIGH cap:
     # materials stack as instances; _list_or_none returns None above the cap (doesn't truncate).
-    # Guarded like the sibling blocks (_read_runes/_read_slot_items): the NEVER-RAISES contract can't
+    # Guarded like the sibling blocks (read_runes/_read_slot_items): the NEVER-RAISES contract can't
     # depend on the Reader never raising — a throw here would kill close_run.
     try:
         items_raw = _list_or_none(reader, reader.rptr(psd + PlayerSaveData.ITEMS), 100000)
