@@ -47,6 +47,16 @@ Keep `electron-updater` bundled in the main process (see `app/electron.vite.conf
 `js-yaml` dependency must also resolve to a patched version. Audit the full lockfile, including
 build tools, with `pnpm audit` after dependency updates.
 
+CI runs both `pnpm audit --prod` and `pnpm audit` at all severity levels after a frozen-lockfile
+install. Findings and registry errors fail the job; do not add ignores or reduce the audit level.
+
+Windows packaging uses `pnpm package:win` after `pnpm build`, or `pnpm dist:win` for both steps.
+The packaging launcher validates the exact local pnpm version against `packageManager`, then uses
+that CLI and puts its local executable first on PATH for electron-builder's dependency collector.
+It fails if local pnpm is missing or mismatched, rather than falling back to a global installation.
+`pnpm test:packaging` exercises version checks, hostile host PATH, argument forwarding, and failures.
+Use these packaging entry points in build scripts instead of invoking electron-builder directly.
+
 `app/package.json` has narrowly version-scoped `pnpm.overrides` for transitive security fixes:
 
 - `brace-expansion` 1.x: require 1.1.21 or later for expansion denial-of-service fixes.

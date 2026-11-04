@@ -123,7 +123,7 @@ jobs:
             # CLI -c.<path> overrides give the RC its own identity so it installs side-by-side
             # with the real app. --publish never: the caller attaches the asset itself.
             # shellcheck disable=SC2016  # ${version}/${ext} are electron-builder templates, not shell vars
-            pnpm exec electron-builder --win \
+            pnpm package:win \
               -c.appId=wiki.tbh.meter.rc \
               -c.productName=tbh-meter-rc \
               -c.nsis.shortcutName=tbh-meter-rc \
