@@ -264,11 +264,17 @@ class PlayerSaveData:                  # plaintext save, snapshot (NOT live)
     CURRENCIES = 0x60                  # List<CurrencySaveData>   (currenySaveDatas)
     HEROES = 0x68                      # List<HeroSaveData>       (heroSaveDatas)
     ATTRIBUTES = 0x78                  # List<AttributeSaveData> (invested skill/passive tree)
+    PETS = 0x80                        # List<PetSaveData>; live-confirmed 1.3.2, type-guarded at read
     RUNES = 0x88                       # List<RuneSaveData> — account-wide runes (LIVE-CRACKED 2026-06-09)
     INVENTORY_SLOTS = 0x90             # List<InventorySaveData> — inventory slot -> item uniqueId
     STASH = 0x98                       # List<StashSaveData> — stash slot -> item uniqueId (separate from the inv)
     ITEMS = 0xB8                       # List<ItemSaveData> (item data; the slots above reference by uniqueId)
     AGGREGATES = 0xC0                  # List<AggregateSaveData> (gold/xp oracle, stale)
+
+
+class PetSaveData:                     # PLAIN saved collection state (archive extraction-findings, runes-pets)
+    KEY = 0x10                         # int PetKey
+    IS_UNLOCK = 0x14                   # bool IsUnlock (ownership, not the cosmetic active pet)
 
 
 class RuneSaveData:                    # invested rune node (account-wide). NAME-readable class in the save.

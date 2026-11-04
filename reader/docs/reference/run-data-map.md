@@ -16,6 +16,7 @@ code_anchors:
   - game/build.py::read_build
   - game/build.py::read_party_slots
   - game/build.py::read_account_snapshot
+  - game/build.py::read_pets
   - metrics/dps.py::DpsTracker
   - metrics/progress.py::ProgressTracker
   - metrics/gold.py::combat_gold_live
@@ -80,6 +81,7 @@ chosen by HIGHEST gold (`game/save.py::pick_live_psd`):
 | Rolled item mods (enchants/decoration/…) | `ItemSaveData.ENCHANT_DATA` → `ItemEnchant.STAT_TYPE`/`VALUE`/`TIER`/`RECIPE` (PLAIN struct, `STRIDE`) | `game/build.py::read_mods` | the SAVE version is PLAIN; the runtime mirror (`te`) is Obscured → prefer the save |
 | Equipped skills + levels (actives + passives) | `HeroSaveData.EQUIPPED_SKILLS` + `PlayerSaveData.ATTRIBUTES` → `AttributeSaveData.KEY`/`LEVEL` | `game/build.py::read_build` / `read_attribute_levels` | the skill level comes from the tree node (`attributeKey`); passives live only in the tree |
 | Account snapshot: runes + inventory + stash | `PlayerSaveData.RUNES` → `RuneSaveData.KEY`/`LEVEL`; `PlayerSaveData.INVENTORY_SLOTS`/`STASH` → `InventorySaveData.UNIQUE_ID`/`StashSaveData.UNIQUE_ID` → join on `PlayerSaveData.ITEMS` | `game/build.py::read_account_snapshot` | account-wide, once at close; goes into the raw in an ok/err envelope (UN-READ → `err`; `[]` = genuinely empty). Items id-only; the wiki derives real drop-rate / wave correction |
+| Account snapshot: pets | `PlayerSaveData.PETS` → `PetSaveData.KEY`/`IS_UNLOCK` | `game/build.py::read_pets` | account-wide saved collection, once at close; additive `pets` envelope with `{key, unlocked}` rows. Missing/partial/wrong-type read → `err`; typed empty collection → `ok([])`. Live-confirmed on 1.3.2 against the all-unlocked collection, including abandoned runs. |
 | 64 LIVE FINAL stats per hero | `StatsHolder.FINAL_STATS` (`Dict<StatType,float>`, `DictFloat` geometry), via `HeroRuntime.STATS_HOLDER` | `game/build.py::read_live_stats_by_hero` | id-only (statId→value); the front resolves the name. The 12 Obscured core stats are NOT read |
 
 The final record assembled by `close_run` is the **`raw/<id>.json`** (stamped with `RAW_SCHEMA_VERSION`;

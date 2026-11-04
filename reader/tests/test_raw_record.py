@@ -200,15 +200,22 @@ def test_raw_record_keys_are_the_documented_contract():
     # app/src/shared/raw-types.ts::RawRunV2. Adding/removing a field here WITHOUT updating
     # raw-types.ts (and this set) breaks the Python↔TS contract with green CI — so we lock the
     # COMPLETE set on the PRODUCING side. (test_no_derived_or_legacy_fields locks what does NOT enter;
-    # this locks what DOES enter.) NB: runes/inventory/stash are ALWAYS emitted (ok([]) at minimum); they're
+    # this locks what DOES enter.) NB: runes/pets/inventory/stash are ALWAYS emitted (ok or err); they're
     # optional in raw-types.ts ONLY because OLD raw (pre-snapshot) doesn't have them.
     expected = {
         "raw_schema_version", "id", "ts", "run_outcome", "game_version",
         "duration", "stageKey", "act", "stageNo", "difficulty", "total_mobs", "mobs",
         "total_damage", "clear_time", "gold_gained", "gold_source", "xp_gained", "xp_source",
-        "drops", "heroes", "runes", "inventory", "stash",
+        "drops", "heroes", "runes", "inventory", "stash", "pets",
     }
     assert set(_rec().keys()) == expected
+
+
+def test_pet_envelope_distinguishes_unreadable_empty_and_owned():
+    assert _rec()["pets"]["ok"] is False
+    assert _rec(pets=[])["pets"] == {"ok": True, "value": []}
+    pets = [{"key": 101, "unlocked": True}, {"key": 102, "unlocked": False}]
+    assert _rec(pets=pets)["pets"] == {"ok": True, "value": pets}
 
 
 # ---- read_account_snapshot: the READ layer distinguishes DIDN'T-READ (None) from EMPTY ([]) ----

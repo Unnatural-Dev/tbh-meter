@@ -150,6 +150,11 @@ def _synth_dump(player_save_lines):
     parts.append(_field("equippedSKillKey", "int[]", "equippedSKillKey", 0x38))
     parts.append("}\n")
 
+    parts.append("public class PetSaveData // TypeDefIndex: 3060\n{\n\t// Fields\n")
+    parts.append(_field("PetKey", "int", "PetKey", 0x10))
+    parts.append(_field("IsUnlock", "bool", "IsUnlock", 0x14))
+    parts.append("}\n")
+
     parts.append("public class AggregateSaveData // TypeDefIndex: 3054\n{\n\t// Fields\n")
     parts.append(_field("Type", "int", "Type", 0x10))
     parts.append(_field("SubKey", "int", "SubKey", 0x14))
@@ -168,6 +173,7 @@ _PSD_OK = "".join([
     _field("currenySaveDatas", "List<CurrencySaveData>", "currenySaveDatas", 0x60),
     _field("heroSaveDatas", "List<HeroSaveData>", "heroSaveDatas", 0x68),
     _field("attributeSaveDatas", "List<AttributeSaveData>", "attributeSaveDatas", 0x78),
+    _field("PetSaveData", "List<PetSaveData>", "PetSaveData", 0x80),
     _field("RuneSaveData", "List<RuneSaveData>", "RuneSaveData", 0x88),
     _field("inventorySaveDatas", "List<InventorySaveData>", "inventorySaveDatas", 0x90),
     _field("stashSaveDatas", "List<StashSaveData>", "stashSaveDatas", 0x98),
@@ -189,6 +195,7 @@ _PSD_SHIFTED = "".join([
     _field("heroSaveDatas", "List<HeroSaveData>", "heroSaveDatas", 0x68),
     _field("currenySaveDatas", "List<CurrencySaveData>", "currenySaveDatas", 0x70),  # real currency, shifted
     _field("attributeSaveDatas", "List<AttributeSaveData>", "attributeSaveDatas", 0x78),
+    _field("PetSaveData", "List<PetSaveData>", "PetSaveData", 0x80),
     _field("RuneSaveData", "List<RuneSaveData>", "RuneSaveData", 0x88),
     _field("inventorySaveDatas", "List<InventorySaveData>", "inventorySaveDatas", 0x90),
     _field("stashSaveDatas", "List<StashSaveData>", "stashSaveDatas", 0x98),
