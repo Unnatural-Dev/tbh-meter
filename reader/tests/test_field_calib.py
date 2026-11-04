@@ -278,6 +278,21 @@ def test_hp_max_none_when_no_monster_damaged():
     assert field_calib.discover_hp_max(r, msm) is None
 
 
+def test_hp_max_full_health_static_wins_over_larger_float():
+    """Full-health samples cannot disprove the static max, even with a larger float nearby."""
+    r = ByteReader()
+    static = UnitHealthController.HP_MAX
+    mons = [0x10000, 0x20000]
+    for i, m in enumerate(mons):
+        _hp(r, m, 0x50000 + i * 0x1000, 900.0, {static: 900.0, 0x58: 1200.0})
+    msm = _msm_with_monsters(r, mons)
+    assert field_calib.discover_hp_max(r, msm) == static
+
+    report = field_calib.calibrate(r, msm, [], {}, {})
+    assert UnitHealthController.HP_MAX == static
+    assert report["UnitHealthController.HP_MAX"] == (static, static, "found")
+
+
 def _sm_with_party(r, sm, hl_off, cache_off, keys, hl=0x60000, base=0x70000):
     r.wptr(sm + hl_off, hl)
     r.wi32(hl + Array.MAX_LENGTH, len(keys))

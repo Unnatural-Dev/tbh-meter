@@ -15,16 +15,16 @@ offset is kept and nothing is overwritten — so this NEVER makes a working buil
 The four signatures:
   Monster.STAGE_KEY          — the int32 on a live monster whose value is a key in stage_info, ONE key
                                dominating the hits (every mob of a stage carries the same one).
-  UnitHealthController.HP_MAX— the float in the HealthController that is >= HP_CURRENT(0x40) and > 0,
-                               and strictly above HP_CURRENT on at least one damaged monster.
+  UnitHealthController.HP_MAX— the float in the HealthController that is >= HP_CURRENT(0x40) and > 0;
+                               a replacement must be strictly above current on at least one monster.
   StageManager.HERO_LIST +   — the Il2CppArray of 1..12 ptrs on a StageManager whose elements, at some
   Unit.CACHE                   cache offset, resolve INFO->HeroKey to a plausible key in hero_cat
                                (discovered together).
 
 STATIC FIRST: when the static offset still satisfies its signature it is kept, even if another slot in
-the window also qualifies. A non-static slot only wins as the UNIQUE best match; any tie between
-non-static slots is ambiguous and keeps the static. So a coincidental match elsewhere in a window can
-never override a working static. Scan windows live in config.offsets.FieldCalibWindows.
+the window also qualifies. Stage-key and hero-list/cache replacements require a UNIQUE best match;
+ties keep the static. HP-max replacements require a value above current and prefer the smallest
+qualifying offset. Scan windows live in config.offsets.FieldCalibWindows.
 
 Discovery is read-only; it writes nothing to the game and nothing to disk.
 """
@@ -109,9 +109,9 @@ def discover_stage_key(reader, msm, stage_info):
 
 def discover_hp_max(reader, msm):
     """The float in the HealthController that is >0 and >= HP_CURRENT(0x40) on a majority of the
-    sampled monsters, AND strictly above HP_CURRENT on at least one (a slot that only ever equals
-    current is a copy of it, not the max). Static first; otherwise the smallest such offset (the max
-    sits right after current)."""
+    sampled monsters. Keep a plausible static even when all samples are at full HP. A replacement must
+    be strictly above HP_CURRENT on at least one sample (rejects a copy of current); otherwise prefer
+    the smallest such offset (the max sits right after current)."""
     if not msm:
         return None
     tally, above = {}, set()
@@ -132,11 +132,13 @@ def discover_hp_max(reader, msm):
                 tally[off] = tally.get(off, 0) + 1
                 if v > cur:
                     above.add(off)
+    # Full-health samples provide no evidence against a plausible static max. Require damage only
+    # when selecting a replacement, so an unrelated larger float cannot displace the working static.
+    if _majority(tally.get(UnitHealthController.HP_MAX, 0), sampled):
+        return UnitHealthController.HP_MAX
     good = sorted(o for o, c in tally.items() if o in above and _majority(c, sampled))
     if not good:
         return None
-    if UnitHealthController.HP_MAX in good:
-        return UnitHealthController.HP_MAX
     return good[0]
 
 
