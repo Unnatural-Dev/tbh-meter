@@ -28,6 +28,37 @@ import {
 
 const settingsFile = join(userData, "settings.json");
 
+describe("settings — chest planner", () => {
+  it("persists saved stage times and account bonuses across a reload", () => {
+    const planner = {
+      clearTimes: { 1101: 58, 1102: 49 },
+      bonusMode: "custom" as const,
+      bonuses: { generalBossPercent: 25, generalNormalPercent: 45, plagueBossPercent: 0, plagueNormalPercent: 10 },
+    };
+    updateSettings({ chestPlanner: planner });
+    vi.advanceTimersByTime(300);
+    expect(loadSettings().chestPlanner).toEqual(planner);
+  });
+
+  it("loads legacy settings without inventing timed stages or deleting drop history", () => {
+    const history = [{ boxKey: 920011, dropAt: 100 }];
+    writeFileSync(settingsFile, JSON.stringify({ chestDropLog: history }), "utf-8");
+    const settings = loadSettings();
+    expect(settings.chestPlanner.clearTimes).toEqual({});
+    expect(settings.chestDropLog).toEqual(history);
+  });
+
+  it("sanitizes invalid planner input before writing and when loading a hand-edited file", () => {
+    const malformed = { clearTimes: { 1101: 58, 1102: -1, 999999: 40 }, bonusMode: "broken", bonuses: null };
+    updateSettings({ chestPlanner: malformed as never });
+    expect(getSettings().chestPlanner.clearTimes).toEqual({ 1101: 58 });
+    vi.advanceTimersByTime(300);
+    expect(loadSettings().chestPlanner).toEqual(getSettings().chestPlanner);
+    writeFileSync(settingsFile, JSON.stringify({ chestPlanner: malformed }), "utf-8");
+    expect(loadSettings().chestPlanner.clearTimes).toEqual({ 1101: 58 });
+  });
+});
+
 beforeEach(() => {
   vi.useFakeTimers();
   // Reset the on-disk + in-memory state to defaults before each test.
