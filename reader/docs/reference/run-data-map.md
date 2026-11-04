@@ -11,6 +11,7 @@ code_anchors:
   - config/offsets.py
   - meter_windows.py::close_run
   - game/models.py::live_monsters
+  - game/models.py::live_monster_snapshot
   - game/save.py::read_gold
   - game/build.py::read_build
   - game/build.py::read_party_slots
@@ -45,9 +46,10 @@ reads" — the full index of what can and can't be read is [[reference/value-inv
 
 | Datum | Symbol (offsets.py) | Module that reads it | Notes |
 |---|---|---|---|
-| Current/max HP of each live mob + summoned | `UnitHealthController.HP_CURRENT` / `HP_MAX`, via `Unit.HEALTH_CONTROLLER` and `MonsterSpawnManager.MONSTER_LIST` / `SUMMONED_LIST` | `game/models.py::live_monsters` | PURE float. Heart of the meter: damage = Σ HP drop between ticks. `SUMMONED_LIST` is skipped while it aliases another list offset (1.3.0) |
+| Current/max HP of each live mob + summoned | `UnitHealthController.HP_CURRENT` / `HP_MAX`, via `Unit.HEALTH_CONTROLLER` and `MonsterSpawnManager.MONSTER_LIST` / `SUMMONED_LIST` | `game/models.py::live_monster_snapshot` (loop) / `live_monsters` | PURE float. Heart of the meter: damage = Σ HP drop between ticks. `SUMMONED_LIST` is skipped while it aliases another list offset (1.3.0). A failed list read returns `None` (invalid snapshot, skipped) — never an empty list, which would count every live mob dead |
 | DPS / total damage / final blow on the mob | (derived from HP above) | `metrics/dps.py::DpsTracker` | 5s window; a mob that vanishes from the list = final blow for the HP it had left. `total_damage` + `dps` go into the record |
-| Number of mobs killed (for kills) | `MonsterSpawnManager.DEAD_MONSTER_LIST` → `List.SIZE` | `metrics/progress.py::ProgressTracker`, and the loop for `R["mobs"]` | cumulative delta = kills; drops on a reload of the SAME stage (signal of an abandoned run) |
+| Number of mobs killed (`R["mobs"]`) | (derived from the live snapshot above) | `metrics/dps.py::DpsTracker.total_kills` | one kill per monster identity that leaves the live list or reaches HP <= 0; invalid snapshots and bad HP reads are not deaths; a fresh tracker per run, so no cross-run baseline |
+| Dead-list size (kills/min, reload signal) | `MonsterSpawnManager.DEAD_MONSTER_LIST` → `List.SIZE` | `metrics/progress.py::ProgressTracker`, `prev_dead` in the loop | cumulative delta; drops on a reload of the SAME stage (signal of an abandoned run) |
 | LIVE stageKey | `Monster.STAGE_KEY` (mode of the first reads) | `game/models.py::live_stage_key` | preferred over `CommonSaveData.CURRENT_STAGE_KEY` (the save's freezes on the swap) |
 | LIVE cumulative COMBAT gold | `AggregateManager.AGGREGATES` → `EAggregateType.GoldEarn` → SubKey 1 (`Dict8B` geometry) | `metrics/gold.py::combat_gold_live` | PRIMARY. Baseline at `new_run`, delta at close. `COMBAT_SUBKEY=1` is a business rule (lives in gold.py, not in offsets) |
 | LIVE within-level XP per hero + level | `HeroRuntime.LEVEL_HIDDEN`/`LEVEL_KEY` (ObscuredInt) + `EXP_HIDDEN`/`EXP_KEY` (ObscuredFloat), via `StageManager.HERO_LIST` → `Unit.CACHE` | `game/build.py::read_live_party` (decode in `game/obscured.py`) → `metrics/xp.py::PartyXpAccumulator` | DECODED from the ACTk cipher in place — 1.00.20 zeroed the +0xC `EXP_FAKE`/`LEVEL_FAKE` decoy build-wide (see [[invariants/obscured-data-offlimits]]). ACCUMULATED tick-by-tick per heroKey (first sighting seeds the baseline; level-up via the curve); death/dropout keep the banked value |

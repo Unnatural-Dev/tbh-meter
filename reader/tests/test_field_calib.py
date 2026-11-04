@@ -367,3 +367,45 @@ def test_live_monsters_skips_summoned_alias_of_dead(monkeypatch):
     assert [u for u, *_ in models.live_monsters(r, msm)] == [alive]
     monkeypatch.setattr(MonsterSpawnManager, "DEAD_MONSTER_LIST", 0x40)
     assert [u for u, *_ in models.live_monsters(r, msm)] == [alive, dead]
+
+
+def test_live_monster_snapshot_marks_failed_reads_invalid():
+    """A failed list read is an INVALID snapshot (None), not an empty stage: treating it as empty
+    counted every live monster dead, then dead again when it reappeared (kill overcount). An
+    unreadable HealthController keeps the unit with hp=None; a null list is a genuine empty slot."""
+    from config.offsets import List
+    from game import models
+
+    class FlakyReader(ByteReader):
+        def __init__(self):
+            super().__init__()
+            self.bad = set()
+
+        def read(self, addr, size):
+            return None if addr in self.bad else super().read(addr, size)
+
+    r = FlakyReader()
+    msm, items, a, b = 0x1000, 0x3000, 0x10000, 0x20000
+    lst = items - 0x800
+    r.wptr(msm + MonsterSpawnManager.MONSTER_LIST, lst)
+    r.wi32(lst + List.SIZE, 2)
+    r.wptr(lst + List.ITEMS, items)
+    r.wptr(items + Array.DATA, a)
+    r.wptr(items + Array.DATA + 8, b)
+    _hp(r, a, a + 0x8000, 100.0, {UnitHealthController.HP_MAX: 200.0})
+    _hp(r, b, b + 0x8000, 50.0, {UnitHealthController.HP_MAX: 200.0})
+
+    assert [(u, c) for u, c, _m in models.live_monster_snapshot(r, msm)] == [(a, 100.0), (b, 50.0)]
+    for bad in (msm + MonsterSpawnManager.MONSTER_LIST, lst + List.SIZE, lst + List.ITEMS,
+                items + Array.DATA):
+        r.bad = {bad}
+        assert models.live_monster_snapshot(r, msm) is None, hex(bad)
+    r.bad = {b + Unit.HEALTH_CONTROLLER}
+    assert [(u, c) for u, c, _m in models.live_monster_snapshot(r, msm)] == [(a, 100.0), (b, None)]
+    r.bad = set()
+    r.wptr(b + Unit.HEALTH_CONTROLLER, 0)           # null HC (valid read) -> omitted = gone
+    assert [u for u, *_ in models.live_monster_snapshot(r, msm)] == [a]
+    r.wi32(lst + List.SIZE, 601)                     # implausible size -> invalid
+    assert models.live_monster_snapshot(r, msm) is None
+    r.wptr(msm + MonsterSpawnManager.MONSTER_LIST, 0)
+    assert models.live_monster_snapshot(r, msm) == []

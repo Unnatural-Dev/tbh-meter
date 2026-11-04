@@ -7,8 +7,16 @@ Cases handled:
   - new monster (not seen before): record it, count no damage.
   - HP went up (heal, or address reused from the pool by a new monster):
     ignore, don't count as damage.
-  - monster gone from the list (died): count its remaining HP as the killing blow.
+  - monster gone from the list, or HP <= 0 (died): count its remaining HP as the
+    killing blow and ONE kill for that identity (total_kills).
+  - invalid snapshot (monsters is None: the list could not be read): NOT "everyone died".
+    The tick is skipped and the previous state kept, so monsters that come back on the
+    next good read are not counted dead twice.
+  - unreadable / non-finite HP for one monster (None, NaN, inf): carry its previous HP
+    forward; a bad read is not a death.
 """
+
+import math
 
 from shared.utils import RollingWindow, now
 
@@ -19,34 +27,45 @@ class DpsTracker:
         self._last_hp: dict[int, float] = {}   # monster addr -> last HP seen
         self.total_damage: float = 0.0         # run accumulator
         self.peak_dps: float = 0.0
-        self.alive: int = 0                     # mobs alive on the last tick (for kill counting)
+        self.alive: int = 0                     # mobs alive on the last VALID tick
+        self.total_kills: int = 0               # run accumulator: monster identities that died
 
     def update(self, monsters, timestamp: float | None = None) -> None:
         """`monsters` = iterable of (addr, current_hp, hp_max) tuples for the live mobs
-        (see game.models.live_monsters). Only (addr, hp) matter here; hp_max is ignored."""
+        (see game.models.live_monster_snapshot), or None for an invalid snapshot (skipped,
+        state kept). Only (addr, hp) matter here; hp_max is ignored."""
         ts = now() if timestamp is None else timestamp
 
-        current: dict[int, float] = {}
-        damage = 0.0
+        if monsters is not None:
+            current: dict[int, float] = {}
+            damage = 0.0
+            kills = 0
 
-        for addr, hp, *_ in monsters:
-            if hp is None or hp <= 0:
-                continue
-            current[addr] = hp
-            prev = self._last_hp.get(addr)
-            if prev is not None and hp < prev:
-                damage += (prev - hp)   # took damage
+            for addr, hp, *_ in monsters:
+                prev = self._last_hp.get(addr)
+                if hp is None or not math.isfinite(hp):
+                    # bad HP read: a known monster stays alive at its last HP; an unknown one waits
+                    if prev is not None:
+                        current[addr] = prev
+                    continue
+                if hp <= 0:
+                    continue            # dead this tick -> counted by the "gone" pass below
+                current[addr] = hp
+                if prev is not None and hp < prev:
+                    damage += (prev - hp)   # took damage
 
-        # monsters gone since the previous tick = died -> killing blow
-        for addr, prev_hp in self._last_hp.items():
-            if addr not in current and prev_hp > 0:
-                damage += prev_hp
+            # monsters gone since the previous tick = died -> killing blow + one kill each
+            for addr, prev_hp in self._last_hp.items():
+                if addr not in current and prev_hp > 0:
+                    damage += prev_hp
+                    kills += 1
 
-        self._last_hp = current
-        self.alive = len(current)
-        if damage > 0:
-            self._window.add(damage, ts)
-            self.total_damage += damage
+            self._last_hp = current
+            self.alive = len(current)
+            self.total_kills += kills
+            if damage > 0:
+                self._window.add(damage, ts)
+                self.total_damage += damage
 
         dps = self.dps(ts)
         if dps > self.peak_dps:
@@ -64,3 +83,4 @@ class DpsTracker:
         self.total_damage = 0.0
         self.peak_dps = 0.0
         self.alive = 0
+        self.total_kills = 0
