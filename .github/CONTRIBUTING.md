@@ -13,7 +13,7 @@ scripts/  Maintainer tooling (refresh-game-data.mjs).
 .github/  CI + the release pipeline workflows.
 ```
 
-Area-specific rules live in `app/CLAUDE.md` and `reader/CLAUDE.md`. **Before touching reader code,
+**Before touching reader code,
 read `reader/docs/_index.md`** — the reader is the highest-risk part of the project (IL2CPP
 resolution, memory offsets, calibration) and the knowledge base there is the source of truth.
 
@@ -64,7 +64,7 @@ node scripts/refresh-game-data.mjs --wiki /path/to/tbh-wiki
 ```
 
 That rewrites `data/{json,sprites,heroes}`. Commit the result. (A game patch usually also needs the
-reader re-calibrated — see `reader/CLAUDE.md` / the reader docs.)
+reader re-calibrated — see the reader docs.)
 
 ## How changes get in
 
