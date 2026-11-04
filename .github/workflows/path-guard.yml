@@ -1,0 +1,26 @@
+name: Check · path guard
+
+# Fails a PR that adds build output (build/ or dist/ dirs, *.exe, *.spec) or a file over 1 MiB.
+# Same script as the local pre-commit hook (scripts/guard-paths.sh). A `git add -A` once
+# committed an 8.6 MB reader exe; removing it from history now would need a force-push.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  path-guard:
+    name: path guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # the base commit must be present to diff against
+          persist-credentials: false
+
+      - name: Check changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: sh scripts/guard-paths.sh "$BASE_SHA" HEAD
