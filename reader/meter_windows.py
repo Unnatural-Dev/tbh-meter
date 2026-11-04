@@ -45,7 +45,7 @@ from metrics.gold import (resolve_combat_gold_klass, combat_gold_klass_ok,
 from metrics import xp
 from metrics.dps import DpsTracker
 from game import build, save, drops, waves
-from game.models import live_monsters as read_live_monsters, live_stage_key as read_live_stage_key
+from game.models import live_monster_snapshot as read_live_monsters, live_stage_key as read_live_stage_key
 
 TARGETS = ["MonsterSpawnManager", "LogManager", "StageClearLog", "StageFailedLog",
            "GetBoxLog", "HeroDieLog", "ResurrectionLog",
@@ -1139,8 +1139,8 @@ def run(hz, output_dir, debug=False):
     log_cursor = LogScanCursor()
     _seed_read, _seed_size = _loglist_size_reader()
     log_cursor.seed(_seed_read, _seed_size, LOG_SCAN_CAP)
-    last_alive = 0
     prev_dead = None    # previous DeadMonsterUnit size (to detect a stage reload)
+    bad_snaps = 0       # consecutive invalid monster snapshots (diag once if sustained)
     dead_reads = 0      # consecutive failing reads = game closed/restarted (re-attach)
     last_snap = 0.0
     last_refresh = 0.0
@@ -1479,7 +1479,6 @@ def run(hz, output_dir, debug=False):
                                 # interrupted run's history isn't replayed as clears.
                                 _rs_read, _rs_size = _loglist_size_reader()
                                 log_cursor.seed(_rs_read, _rs_size, LOG_SCAN_CAP)
-                                last_alive = 0
                                 prev_dead = None
                                 cur_key = reader.ri32(csd + CommonSaveData.CURRENT_STAGE_KEY) if csd else None
                                 dead_reads = 0
@@ -1493,13 +1492,19 @@ def run(hz, output_dir, debug=False):
             # Orchestrated DPS: reads the mobs in a BATCH (game.models.live_monsters via Reader) and
             # delegates to metrics.dps.DpsTracker — damage = Σ HP drop + finishing blow, the 5s window
             # and total live in the tracker (reset per run via new_run). Here only what's the
-            # meter's: kill count (drop in the live count) and the smoothed DPS for the screen.
+            # meter's: the smoothed DPS for the screen. Kills = monster identities the run's tracker
+            # saw die (invalid snapshots skipped; a fresh tracker per run, so no cross-run baseline).
             dps_t = R["dps"]
-            dps_t.update(read_live_monsters(reader, msm), now)
-            alive = dps_t.alive
-            if alive < last_alive:
-                R["mobs"] += (last_alive - alive)
-            last_alive = alive
+            _snap = read_live_monsters(reader, msm)
+            if _snap is None:
+                bad_snaps += 1
+                if bad_snaps == int(hz * 5):
+                    diag(f"[dps] monster snapshot invalid for {bad_snaps} ticks (msm={hex(msm) if msm else None}) "
+                         "— DPS/kills frozen until reads recover")
+            else:
+                bad_snaps = 0
+            dps_t.update(_snap, now)
+            R["mobs"] = dps_t.total_kills
             dps_live = dps_t.dps(now)
 
             if now - last_refresh >= REFRESH:

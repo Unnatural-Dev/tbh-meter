@@ -110,6 +110,69 @@ class TestDpsTrackerAlive:
         assert t.alive == 0
 
 
+class TestDpsTrackerKills:
+    def test_invalid_snapshot_does_not_kill_returning_monsters(self):
+        t = DpsTracker()
+        t.update([mob(1, 100.0), mob(2, 80.0)], 0.0)
+        t.update(None, 0.1)
+        assert t.alive == 2
+        assert t.total_damage == 0.0
+        assert t.total_kills == 0
+        t.update([mob(2, 80.0), mob(1, 100.0)], 0.2)
+        t.update([], 0.3)
+        t.update([], 0.4)
+        assert t.total_kills == 2
+        assert t.total_damage == 180.0
+
+    def test_same_tick_spawn_and_death_count_by_identity(self):
+        t = DpsTracker()
+        t.update([mob(1, 100.0), mob(2, 80.0)], 0.0)
+        t.update([mob(2, 80.0), mob(3, 60.0)], 0.1)
+        assert t.alive == 2
+        assert t.total_kills == 1
+        t.update([mob(3, 60.0), mob(2, 80.0)], 0.2)
+        assert t.total_kills == 1
+
+    @pytest.mark.parametrize("dead_snapshot", [[], [mob(1, 0.0)]])
+    def test_last_enemy_and_reused_pool_address(self, dead_snapshot):
+        t = DpsTracker()
+        t.update([mob(1, 100.0)], 0.0)
+        t.update(dead_snapshot, 0.1)
+        assert t.total_kills == 1
+        t.update([mob(1, 100.0)], 0.2)
+        t.update(dead_snapshot, 0.3)
+        assert t.total_kills == 2
+
+    def test_reset_clears_kills_and_previous_run_baseline(self):
+        t = DpsTracker()
+        t.update([mob(1, 100.0), mob(2, 80.0)], 0.0)
+        t.update([mob(2, 80.0)], 0.1)
+        t.reset()
+        t.update([], 0.2)
+        assert t.total_kills == 0
+        assert t.total_damage == 0.0
+
+    @pytest.mark.parametrize("hp", [None, float("nan"), float("inf")])
+    def test_bad_hp_does_not_become_a_death(self, hp):
+        t = DpsTracker()
+        t.update([mob(1, 100.0)], 0.0)
+        t.update([mob(1, hp)], 0.1)
+        assert t.total_kills == 0
+        assert t.total_damage == 0.0
+        assert t.alive == 1
+
+    def test_unknown_bad_hp_is_not_tracked_and_carried_unit_dies_once(self):
+        t = DpsTracker()
+        t.update([mob(9, None)], 0.0)
+        assert t.alive == 0
+        t.update([mob(1, 100.0)], 0.1)
+        t.update([mob(1, None)], 0.2)
+        t.update([], 0.3)
+        t.update([], 0.4)
+        assert t.total_kills == 1
+        assert t.total_damage == 100.0
+
+
 class TestDpsTrackerWindow:
     def test_dps_reflects_damage_in_window(self):
         window = 5.0

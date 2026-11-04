@@ -3,7 +3,7 @@
 Free functions taking (reader, ...), mirroring the monolith (same validated logic).
 DPS = Σ of monster HP drops (the game doesn't store damage); HP is a RAW float @0x40/0x50."""
 
-from config.offsets import MonsterSpawnManager, Unit, UnitHealthController, Monster
+from config.offsets import List, MonsterSpawnManager, Unit, UnitHealthController, Monster
 
 
 def _monster_list_fields():
@@ -14,6 +14,47 @@ def _monster_list_fields():
     if s in (MonsterSpawnManager.MONSTER_LIST, MonsterSpawnManager.DEAD_MONSTER_LIST):
         return (MonsterSpawnManager.MONSTER_LIST,)
     return (MonsterSpawnManager.MONSTER_LIST, s)
+
+
+def live_monster_snapshot(reader, msm):
+    """One tick's monster snapshot for DpsTracker: list of (unit_addr, hp_cur, hp_max), or None
+    when the snapshot is INVALID (a list header/array could not be read). A failed read must not
+    look like an empty stage, or every live monster is counted dead and counted again when it
+    reappears. A unit whose HealthController pointer or HP can't be READ is kept with hp=None so
+    the tracker carries it forward; a NULL HealthController (valid read of 0) is omitted, as before,
+    so it counts as gone."""
+    out = []
+    for field in _monster_list_fields():
+        lst = reader.rptr(msm + field)
+        if lst is None:
+            return None                     # bad read (not a null list)
+        if not lst:
+            continue                        # null list = no monsters in this slot
+        size = reader.ri32(lst + List.SIZE)
+        items = reader.rptr(lst + List.ITEMS)
+        if size is None or items is None or size < 0 or size > 600:
+            return None
+        if size == 0:
+            continue
+        ptrs = reader.read_array_ptrs(items, size)
+        if len(ptrs) != size:
+            return None
+        cur_off = UnitHealthController.HP_CURRENT
+        max_off = UnitHealthController.HP_MAX
+        span = max_off - cur_off
+        fmt = "<%df" % (span // 4 + 1)
+        for u in ptrs:
+            if not u:
+                continue
+            hc = reader.rptr(u + Unit.HEALTH_CONTROLLER)
+            if hc == 0:
+                continue                    # null HC (valid read): no live health -> gone
+            vals = reader.read_struct(hc + cur_off, fmt) if hc else None
+            if vals is None:
+                out.append((u, None, None))
+            else:
+                out.append((u, vals[0], vals[span // 4]))
+    return out
 
 
 def live_monsters(reader, msm):
