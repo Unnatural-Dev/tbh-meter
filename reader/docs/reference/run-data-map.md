@@ -45,7 +45,7 @@ reads" — the full index of what can and can't be read is [[reference/value-inv
 
 | Datum | Symbol (offsets.py) | Module that reads it | Notes |
 |---|---|---|---|
-| Current/max HP of each live mob + summoned | `UnitHealthController.HP_CURRENT` / `HP_MAX`, via `Unit.HEALTH_CONTROLLER` and `MonsterSpawnManager.MONSTER_LIST` / `SUMMONED_LIST` | `game/models.py::live_monsters` | PURE float. Heart of the meter: damage = Σ HP drop between ticks |
+| Current/max HP of each live mob + summoned | `UnitHealthController.HP_CURRENT` / `HP_MAX`, via `Unit.HEALTH_CONTROLLER` and `MonsterSpawnManager.MONSTER_LIST` / `SUMMONED_LIST` | `game/models.py::live_monsters` | PURE float. Heart of the meter: damage = Σ HP drop between ticks. `SUMMONED_LIST` is skipped while it aliases another list offset (1.3.0) |
 | DPS / total damage / final blow on the mob | (derived from HP above) | `metrics/dps.py::DpsTracker` | 5s window; a mob that vanishes from the list = final blow for the HP it had left. `total_damage` + `dps` go into the record |
 | Number of mobs killed (for kills) | `MonsterSpawnManager.DEAD_MONSTER_LIST` → `List.SIZE` | `metrics/progress.py::ProgressTracker`, and the loop for `R["mobs"]` | cumulative delta = kills; drops on a reload of the SAME stage (signal of an abandoned run) |
 | LIVE stageKey | `Monster.STAGE_KEY` (mode of the first reads) | `game/models.py::live_stage_key` | preferred over `CommonSaveData.CURRENT_STAGE_KEY` (the save's freezes on the swap) |

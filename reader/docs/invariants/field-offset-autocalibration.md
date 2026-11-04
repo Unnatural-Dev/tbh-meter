@@ -17,11 +17,22 @@ code_anchors:
   - meter_windows.py::_autocalibrate_fields
   - config/offsets.py::Monster.STAGE_KEY
   - config/offsets.py::Unit.CACHE
+  - config/offsets.py::FieldCalibWindows
 guarded_by:
   - tests/test_field_calib.py::test_discover_stage_key_by_catalog
   - tests/test_field_calib.py::test_discover_hp_max_ge_current
   - tests/test_field_calib.py::test_discover_hero_list_and_cache
   - tests/test_field_calib.py::test_calibrate_keeps_static_on_no_signal
+  - tests/test_field_calib.py::test_stage_key_static_wins_over_coincidental_match
+  - tests/test_field_calib.py::test_stage_key_tie_between_non_static_slots_keeps_static
+  - tests/test_field_calib.py::test_stage_key_rejects_slot_with_varying_catalog_values
+  - tests/test_field_calib.py::test_stage_key_scan_never_reads_obscured_cache
+  - tests/test_field_calib.py::test_hp_max_rejects_copy_of_current
+  - tests/test_field_calib.py::test_hp_max_static_wins_over_earlier_qualifying_slot
+  - tests/test_field_calib.py::test_hp_max_full_health_static_wins_over_larger_float
+  - tests/test_field_calib.py::test_hero_list_ignores_junk_catalog_keys
+  - tests/test_field_calib.py::test_hero_list_static_pair_wins
+  - tests/test_field_calib.py::test_hero_list_solo_tie_is_ambiguous
 ---
 
 # Field-offset auto-calibration (the four fragile offsets)
@@ -55,12 +66,23 @@ correct before any reading. It piggybacks on structures the resolver already pro
 Signatures:
 
 - **STAGE_KEY** — the int32 on a live monster whose value is a key in `stage_info`, confirmed on ≥ half
-  of a few sampled monsters.
-- **HP_MAX** — the float in the HealthController that is `> 0` and `≥ HP_CURRENT(0x40)`, confirmed across
-  monsters (smallest qualifying offset wins).
+  of a few sampled monsters, with ONE key outnumbering every other catalog value at that offset (every
+  mob of a stage has the same one; a coincidental catalog-valued field varies by mob).
+  The window skips `Monster.CACHE_OBSCURED` (see [[invariants/obscured-data-offlimits]]).
+- **HP_MAX** — the float in the HealthController that is `> 0` and `≥ HP_CURRENT(0x40)` on ≥ half the
+  sampled monsters. A plausible static offset is kept even when every sampled monster is at full HP.
+  A non-static candidate must also be strictly above current on at least one sample (rejects copies
+  of current); among those candidates the smallest offset wins.
 - **HERO_LIST + CACHE** (discovered together) — a `StageManager` array of 1..12 ptrs whose elements, at
-  some cache offset, resolve `HeroRuntime.INFO → HeroInfoData.HERO_KEY` in `hero_cat`; requires every
-  element to match AND ≥ 2 distinct hero keys (defeats the "same key repeated" false positive).
+  some cache offset, resolve `HeroRuntime.INFO → HeroInfoData.HERO_KEY` to a PLAUSIBLE `hero_cat` key
+  (100..9999; the catalog scan also yields junk keys like 1, 2, 4, 8, 65535); requires every element to
+  match AND ≥ 2 distinct hero keys (defeats the "same key repeated" false positive). The static pair
+  matching on any StageManager ends the scan.
+
+**Static first.** If the static offset still satisfies its signature it is kept, even when another slot
+in the window also qualifies. For stage-key and hero-list/cache discovery, a non-static slot wins only
+as the UNIQUE best match; ties keep the static. HP-max discovery uses the smallest qualifying
+non-static offset as described above.
 
 ## Invariants (do not break these)
 
@@ -70,7 +92,8 @@ Signatures:
    recalibration is done (it seeds the scan windows and the fallback).
 2. **Read-only.** Discovery writes nothing to the game and nothing to disk; it only mutates the offset
    classes in memory for the running process.
-3. **Scan windows are generous on purpose.** Each `_*_WIN` range spans several recompiles' worth of
+3. **Scan windows are generous on purpose.** Each `FieldCalibWindows` range (in `config/offsets.py`,
+   next to the offsets it brackets) spans several recompiles' worth of
    drift around the current value. If a future build shifts a field OUTSIDE its window, widen the
    window (and update the static fallback) — that is the only maintenance left.
 4. **Any reader of these offsets must read them dynamically**, not bake a fixed position into a struct
