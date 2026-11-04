@@ -29,6 +29,7 @@ guarded_by:
   - tests/test_field_calib.py::test_stage_key_scan_never_reads_obscured_cache
   - tests/test_field_calib.py::test_hp_max_rejects_copy_of_current
   - tests/test_field_calib.py::test_hp_max_static_wins_over_earlier_qualifying_slot
+  - tests/test_field_calib.py::test_hp_max_full_health_static_wins_over_larger_float
   - tests/test_field_calib.py::test_hero_list_ignores_junk_catalog_keys
   - tests/test_field_calib.py::test_hero_list_static_pair_wins
   - tests/test_field_calib.py::test_hero_list_solo_tie_is_ambiguous
@@ -69,8 +70,9 @@ Signatures:
   mob of a stage has the same one; a coincidental catalog-valued field varies by mob).
   The window skips `Monster.CACHE_OBSCURED` (see [[invariants/obscured-data-offlimits]]).
 - **HP_MAX** — the float in the HealthController that is `> 0` and `≥ HP_CURRENT(0x40)` on ≥ half the
-  sampled monsters AND strictly above current on at least one (a slot that only equals current is a
-  copy, not the max). Among non-static candidates the smallest offset wins.
+  sampled monsters. A plausible static offset is kept even when every sampled monster is at full HP.
+  A non-static candidate must also be strictly above current on at least one sample (rejects copies
+  of current); among those candidates the smallest offset wins.
 - **HERO_LIST + CACHE** (discovered together) — a `StageManager` array of 1..12 ptrs whose elements, at
   some cache offset, resolve `HeroRuntime.INFO → HeroInfoData.HERO_KEY` to a PLAUSIBLE `hero_cat` key
   (100..9999; the catalog scan also yields junk keys like 1, 2, 4, 8, 65535); requires every element to
@@ -78,9 +80,9 @@ Signatures:
   matching on any StageManager ends the scan.
 
 **Static first.** If the static offset still satisfies its signature it is kept, even when another slot
-in the window also qualifies. A non-static slot wins only as the UNIQUE best match; a tie between
-non-static slots is ambiguous and keeps the static. This is what makes invariant 1 hold against a
-coincidental match, not only against "no signal".
+in the window also qualifies. For stage-key and hero-list/cache discovery, a non-static slot wins only
+as the UNIQUE best match; ties keep the static. HP-max discovery uses the smallest qualifying
+non-static offset as described above.
 
 ## Invariants (do not break these)
 
