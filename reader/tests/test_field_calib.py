@@ -163,3 +163,192 @@ def test_calibrate_keeps_static_on_no_signal():
     after = (Monster.STAGE_KEY, Unit.CACHE, UnitHealthController.HP_MAX, StageManager.HERO_LIST)
     assert before == after
     assert all(v[2] == "fallback" for v in report.values())
+
+
+# --- hardening: a coincidental match must never override a working static ----------------------
+
+
+def _monsters_with(r, n, base=0x10000, step=0x10000):
+    return [base + i * step for i in range(n)]
+
+
+def test_stage_key_static_wins_over_coincidental_match():
+    """Both the static and a lower slot carry the catalog key on every mob: the static is kept (the
+    old max-tally picked the LOWEST offset)."""
+    r = ByteReader()
+    mons = _monsters_with(r, 4)
+    for m in mons:
+        r.wi32(m + Monster.STAGE_KEY, 3301)
+        r.wi32(m + 0x3C0, 3301)
+    msm = _msm_with_monsters(r, mons)
+    assert field_calib.discover_stage_key(r, msm, STAGE_INFO) == Monster.STAGE_KEY
+
+
+def test_stage_key_tie_between_non_static_slots_keeps_static():
+    """Two non-static slots qualify equally and the static reads nothing: ambiguous -> None."""
+    r = ByteReader()
+    mons = _monsters_with(r, 4)
+    for m in mons:
+        r.wi32(m + 0x3C0, 3301)
+        r.wi32(m + 0x444, 3301)
+    msm = _msm_with_monsters(r, mons)
+    assert field_calib.discover_stage_key(r, msm, STAGE_INFO) is None
+
+
+def test_stage_key_rejects_slot_with_varying_catalog_values():
+    """A slot whose catalog-valued reads DIFFER across mobs is not the stage key (every mob of a stage
+    has the same one); the consistent slot wins."""
+    r = ByteReader()
+    mons = _monsters_with(r, 4)
+    for i, m in enumerate(mons):
+        r.wi32(m + 0x3C0, (3301, 1107)[i % 2])  # catalog values, but not one key
+        r.wi32(m + 0x444, 3301)
+    msm = _msm_with_monsters(r, mons)
+    assert field_calib.discover_stage_key(r, msm, STAGE_INFO) == 0x444
+
+
+def test_stage_key_tolerates_one_odd_catalog_value():
+    """The real slot still wins when one mob reads a different catalog key (3 of 4 agree)."""
+    r = ByteReader()
+    mons = _monsters_with(r, 4)
+    for i, m in enumerate(mons):
+        r.wi32(m + 0x444, 1107 if i == 0 else 3301)
+    msm = _msm_with_monsters(r, mons)
+    assert field_calib.discover_stage_key(r, msm, STAGE_INFO) == 0x444
+
+
+def test_stage_key_needs_majority_of_sampled_monsters():
+    r = ByteReader()
+    mons = _monsters_with(r, 4)
+    r.wi32(mons[0] + 0x444, 3301)  # 1 of 4
+    msm = _msm_with_monsters(r, mons)
+    assert field_calib.discover_stage_key(r, msm, STAGE_INFO) is None
+
+
+def test_stage_key_scan_never_reads_obscured_cache():
+    """The stage-key window skips Monster.CACHE_OBSCURED (8-byte pointer slot): a catalog value planted
+    there is never seen, and no 4-byte read in the window overlaps it."""
+    from config.offsets import FieldCalibWindows
+    obs = Monster.CACHE_OBSCURED
+    assert all(o + 4 <= obs or o >= obs + 8 for o in FieldCalibWindows.STAGE_KEY)
+    assert min(FieldCalibWindows.STAGE_KEY) < obs < max(FieldCalibWindows.STAGE_KEY)  # still spanning
+    r = ByteReader()
+    mons = _monsters_with(r, 2)
+    for m in mons:
+        r.wi32(m + obs, 3301)
+        r.wi32(m + obs + 4, 3301)
+    msm = _msm_with_monsters(r, mons)
+    assert field_calib.discover_stage_key(r, msm, STAGE_INFO) is None
+
+
+def _hp(r, m, hc, cur, fields):
+    r.wptr(m + Unit.HEALTH_CONTROLLER, hc)
+    r.wf32(hc + UnitHealthController.HP_CURRENT, cur)
+    for off, v in fields.items():
+        r.wf32(hc + off, v)
+
+
+def test_hp_max_rejects_copy_of_current():
+    """A slot that only ever EQUALS current (a copy/previous-HP field) before the real max is not the
+    max — the old `min(good)` took it."""
+    r = ByteReader()
+    m0, m1 = 0x10000, 0x20000
+    _hp(r, m0, 0x50000, 500.0, {0x44: 500.0, 0x58: 900.0})
+    _hp(r, m1, 0x51000, 300.0, {0x44: 300.0, 0x58: 900.0})
+    msm = _msm_with_monsters(r, [m0, m1])
+    assert field_calib.discover_hp_max(r, msm) == 0x58
+
+
+def test_hp_max_static_wins_over_earlier_qualifying_slot():
+    """A shield/duplicate float >= current at a lower offset does not beat a qualifying static."""
+    r = ByteReader()
+    m0 = 0x10000
+    static = UnitHealthController.HP_MAX
+    _hp(r, m0, 0x50000, 500.0, {0x44: 800.0, static: 900.0})
+    msm = _msm_with_monsters(r, [m0])
+    assert field_calib.discover_hp_max(r, msm) == static
+
+
+def test_hp_max_none_when_no_monster_damaged():
+    """Every mob at full HP: every candidate only equals current -> no proof -> static kept."""
+    r = ByteReader()
+    m0 = 0x10000
+    _hp(r, m0, 0x50000, 900.0, {0x58: 900.0})
+    msm = _msm_with_monsters(r, [m0])
+    assert field_calib.discover_hp_max(r, msm) is None
+
+
+def _sm_with_party(r, sm, hl_off, cache_off, keys, hl=0x60000, base=0x70000):
+    r.wptr(sm + hl_off, hl)
+    r.wi32(hl + Array.MAX_LENGTH, len(keys))
+    for i, hk in enumerate(keys):
+        ha = base + i * 0x1000
+        r.wptr(hl + Array.DATA + i * 8, ha)
+        uf = ha + 0x8000
+        info = uf + 0x4000
+        r.wptr(ha + cache_off, uf)
+        r.wptr(uf + HeroRuntime.INFO, info)
+        r.wi32(info + HeroInfoData.HERO_KEY, hk)
+
+
+def test_hero_list_ignores_junk_catalog_keys():
+    """hero_cat junk keys (1, 2, 4, 8, 65535, ...) seen in the seed are not hero keys: a 'party' that
+    only resolves junk keys is rejected."""
+    r = ByteReader()
+    sm = 0x1000
+    _sm_with_party(r, sm, 0x58, 0x3A0, [2, 4, 8])
+    cat = {**HERO_CAT, 1: 0, 2: 2, 4: 1, 8: 8, 65535: -1, 1376256: 5}
+    assert field_calib.discover_hero_list_and_cache(r, [sm], cat) == (None, None)
+
+
+def test_hero_list_static_pair_wins():
+    """The static pair matches on one StageManager and another pair matches elsewhere: static kept."""
+    r = ByteReader()
+    sm_a, sm_b = 0x1000, 0x2000
+    _sm_with_party(r, sm_a, 0x58, 0x3A0, [401, 301, 201], hl=0x60000, base=0x70000)
+    _sm_with_party(r, sm_b, StageManager.HERO_LIST, Unit.CACHE, [101], hl=0x90000, base=0xA0000)
+    found = field_calib.discover_hero_list_and_cache(r, [sm_a, sm_b], HERO_CAT)
+    assert found == (StageManager.HERO_LIST, Unit.CACHE)
+
+
+def test_hero_list_solo_tie_is_ambiguous():
+    """Solo party (no >=2-distinct defence) resolving at TWO non-static pairs: ambiguous -> None."""
+    r = ByteReader()
+    sm_a, sm_b = 0x1000, 0x2000
+    _sm_with_party(r, sm_a, 0x58, 0x3A0, [401], hl=0x60000, base=0x70000)
+    _sm_with_party(r, sm_b, 0x60, 0x3B0, [301], hl=0x90000, base=0xA0000)
+    found = field_calib.discover_hero_list_and_cache(r, [sm_a, sm_b], HERO_CAT)
+    assert found == (None, None)
+
+
+def test_hero_list_larger_party_beats_solo_match():
+    """A full party at one pair outranks a solo coincidence at another pair."""
+    r = ByteReader()
+    sm_a, sm_b = 0x1000, 0x2000
+    _sm_with_party(r, sm_a, 0x58, 0x3A0, [401, 301, 201], hl=0x60000, base=0x70000)
+    _sm_with_party(r, sm_b, 0x60, 0x3B0, [101], hl=0x90000, base=0xA0000)
+    found = field_calib.discover_hero_list_and_cache(r, [sm_a, sm_b], HERO_CAT)
+    assert found == (0x58, 0x3A0)
+
+
+def test_live_monsters_skips_summoned_alias_of_dead(monkeypatch):
+    """SUMMONED_LIST aliasing DEAD_MONSTER_LIST (1.3.0) must not iterate dead units as summons; a
+    distinct SUMMONED_LIST is still read."""
+    from config.offsets import List
+    from game import models
+    r = ByteReader()
+    msm = 0x1000
+    alive, dead = 0x10000, 0x20000
+    for field, items, unit in ((MonsterSpawnManager.MONSTER_LIST, 0x3000, alive),
+                               (0x30, 0x5000, dead)):
+        lst = items - 0x800
+        r.wptr(msm + field, lst)
+        r.wi32(lst + List.SIZE, 1)
+        r.wptr(lst + List.ITEMS, items)
+        r.wptr(items + Array.DATA, unit)
+        _hp(r, unit, unit + 0x8000, 100.0, {UnitHealthController.HP_MAX: 200.0})
+    monkeypatch.setattr(MonsterSpawnManager, "DEAD_MONSTER_LIST", 0x30)
+    monkeypatch.setattr(MonsterSpawnManager, "SUMMONED_LIST", 0x30)
+    assert [u for u, *_ in models.live_monsters(r, msm)] == [alive]
+    monkeypatch.setattr(MonsterSpawnManager, "DEAD_MONSTER_LIST", 0x40)
+    assert [u for u, *_ in models.live_monsters(r, msm)] == [alive, dead]
