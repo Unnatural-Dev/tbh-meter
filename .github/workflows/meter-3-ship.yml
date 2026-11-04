@@ -209,7 +209,7 @@ jobs:
           # nailed to the exact commit we built. Do NOT let `gh release` mint the tag at publish
           # time: a release created without an existing tag anchors to the DEFAULT BRANCH'S HEAD
           # *at publish*, which has drifted when main advanced during the ~4-min build (e.g. a
-          # Dependabot merge to release-video) — that plants the tag on the wrong commit AND fails
+          # dependency-only merge) — that plants the tag on the wrong commit AND fails
           # the sha check below, while leaving Latest flipped. Pushing the git tag now changes
           # nothing players see (/releases/latest still serves the old release until the flip
           # below). Plain push, never forced. Same-sha = idempotent re-ship; a different sha was

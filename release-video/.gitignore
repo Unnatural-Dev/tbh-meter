@@ -1,8 +1,0 @@
-# heavy / regenerable — keep the sources, not the artifacts
-node_modules/
-out/
-assets/
-frames/
-public/meter-real/
-public/site-real/
-*.log
