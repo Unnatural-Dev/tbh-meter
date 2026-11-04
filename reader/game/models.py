@@ -6,6 +6,16 @@ DPS = Σ of monster HP drops (the game doesn't store damage); HP is a RAW float 
 from config.offsets import MonsterSpawnManager, Unit, UnitHealthController, Monster
 
 
+def _monster_list_fields():
+    """MONSTER_LIST, plus SUMMONED_LIST only when it is a list of its own. 1.3.0 restructured
+    MonsterSpawnManager and SUMMONED_LIST now aliases DEAD_MONSTER_LIST (see config/offsets.py): if
+    that slot ever fills, iterating it as summons would feed dead units' stale HP into DPS."""
+    s = MonsterSpawnManager.SUMMONED_LIST
+    if s in (MonsterSpawnManager.MONSTER_LIST, MonsterSpawnManager.DEAD_MONSTER_LIST):
+        return (MonsterSpawnManager.MONSTER_LIST,)
+    return (MonsterSpawnManager.MONSTER_LIST, s)
+
+
 def live_monsters(reader, msm):
     """Iterates (unit_addr, hp_cur, hp_max) over the live + summoned monsters.
 
@@ -14,7 +24,7 @@ def live_monsters(reader, msm):
     and hp_cur+hp_max come from a SINGLE read (read_struct, 16B: 0x40..0x50) instead of two.
     That leaves 1 syscall to dereference each Unit's HealthController (addresses
     are scattered, so no batching). HP is a RAW float @0x40 (cur) / @0x50 (max)."""
-    for field in (MonsterSpawnManager.MONSTER_LIST, MonsterSpawnManager.SUMMONED_LIST):
+    for field in _monster_list_fields():
         for u in reader.list_ptrs(reader.rptr(msm + field), cap=600):
             hc = reader.rptr(u + Unit.HEALTH_CONTROLLER)
             if not hc:

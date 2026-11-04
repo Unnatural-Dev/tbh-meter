@@ -26,6 +26,7 @@ asserts:
 guarded_by:
   - tests/test_obscured_markers.py::test_no_reader_module_reads_obscured_offsets
   - tests/test_obscured_markers.py::test_obscured_markers_exist
+  - tests/test_field_calib.py::test_stage_key_scan_never_reads_obscured_cache
   - tests/test_offsets.py::TestEEquipClassType::test_knight_is_1
 ---
 
@@ -50,6 +51,9 @@ The two offsets exist in `config/offsets.py` ONLY as **named markers** ("DO NOT 
 anchor on them and the test can guard them. They **must not be referenced by any read module**
 (`metrics/`, `game/`) — if a module cites `CORE_STATS_OBSCURED`/`CACHE_OBSCURED`, it's because someone is
 about to read there, and `guarded_by` fails on purpose.
+The name check cannot see a BLIND window scan, so a scan window must carve the Obscured slot out
+itself: `config/offsets.py::FieldCalibWindows.STAGE_KEY` skips `Monster.CACHE_OBSCURED` (range-checked
+by the test above).
 
 ## The dead `fakeValue` decoy is recovered by decoding the cipher (1.00.20+)
 
