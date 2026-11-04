@@ -19,7 +19,7 @@ import { updateSettings } from "../settings.js";
 import { getRunsSource } from "../sources/runs-source.js";
 import { toggleFavorite, invalidateFavoritesCache } from "../favorites-store.js";
 import { deleteRunFiles, removeLegacyLines } from "../logs-archive.js";
-import { ingestPending, rawDir, logsDir } from "../converter/ingest.js";
+import { ingestPending, rawDir, logsDir, logsFileName } from "../converter/ingest.js";
 
 let dir: string;
 
@@ -144,8 +144,10 @@ describe("deleteRunFiles (batch + safeId-collision guard, B1)", () => {
     mkdirSync(logs, { recursive: true });
     // Two ids that SANITIZE to the same filename suffix (':' and '|' both map to '-'): only the
     // exact target must be deleted, never its collision twin.
-    writeFileSync(join(logs, "1_a-1.json"), JSON.stringify({ id: "a:1", ts: 1 }), "utf-8");
-    writeFileSync(join(logs, "2_a-1.json"), JSON.stringify({ id: "a|1", ts: 2 }), "utf-8");
+    const target = { id: "a:1", ts: 1 };
+    const collision = { id: "a|1", ts: 2 };
+    writeFileSync(join(logs, logsFileName(target)), JSON.stringify(target), "utf-8");
+    writeFileSync(join(logs, logsFileName(collision)), JSON.stringify(collision), "utf-8");
 
     const removed = deleteRunFiles(new Set(["a:1"]));
     expect(removed).toBe(1);

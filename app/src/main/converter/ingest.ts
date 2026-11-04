@@ -31,6 +31,7 @@ import type { AnyRawRun } from "../../shared/raw-types.js";
 import type { RunRecord } from "../../shared/run-types.js";
 import { convert, STRUCTURED_SCHEMA_VERSION } from "./convert.js";
 import { convertLegacy } from "./legacy.js";
+import { safeLogId } from "../log-file-name.js";
 
 const POLL_INTERVAL_MS = 1_000;
 // Coalesce fs.watch bursts on raw/ (tmp create + rename per finished run) into ONE trailing pass.
@@ -102,9 +103,9 @@ function legacyRunsFile(dataDir: string): string {
 
 /** The logs filename for a structured record: sortable by time, unique by id, filesystem-safe.
  *  Deterministic from the record alone (same id+ts -> same name) so existence is the idempotency
- *  check. Mirrors logs-archive.ts's convention so the two never disagree on a file's name. */
+ *  check. Uses the same ID stem as logs-archive.ts's deletion lookup. */
 export function logsFileName(record: Pick<RunRecord, "id" | "ts">): string {
-  const safeId = record.id.replace(/[^A-Za-z0-9._-]/g, "-");
+  const safeId = safeLogId(record.id);
   return `${record.ts}_${safeId}.json`;
 }
 
