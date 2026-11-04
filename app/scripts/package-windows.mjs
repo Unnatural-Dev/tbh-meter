@@ -31,7 +31,7 @@ export function packagingCommand(projectDir, args, env = process.env) {
 
   // Windows treats environment names case-insensitively. Emit exactly one PATH key so
   // child_process cannot select an older, differently-cased host Path instead.
-  const inheritedPath = env.PATH ?? Object.entries(env).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
+  const inheritedPath = env.PATH ?? Object.entries(env).find(([key, value]) => key.toLowerCase() === "path" && value != null)?.[1] ?? "";
   const childEnv = Object.fromEntries(Object.entries(env).filter(([key]) => key.toLowerCase() !== "path"));
   childEnv.PATH = binDir + (inheritedPath ? delimiter + inheritedPath : "");
   return {
