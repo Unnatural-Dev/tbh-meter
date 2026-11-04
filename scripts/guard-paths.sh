@@ -9,7 +9,7 @@
 #   - anything under a build/ or dist/ directory (except app/build/, the electron-builder
 #     resources dir: icons, installer scripts)
 #   - *.exe and *.spec (PyInstaller output and specs)
-#   - any file over 1 MiB (except release-video/music/)
+#   - any file over 1 MiB
 # Why: a `git add -A` once committed an 8.6 MB reader exe; it now lives in history for good.
 set -eu
 
@@ -44,7 +44,6 @@ while IFS= read -r f; do
   case "$f" in
     *.exe) flag "$f" "executable" ;;
     *.spec) flag "$f" "PyInstaller spec" ;;
-    release-video/music/*) continue ;;
   esac
 
   if [ "$mode" = staged ]; then
