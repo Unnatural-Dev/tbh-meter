@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, readdirSync, readFileSync, rmSync, statSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ingestPending, ingestOne, logsDir, rawDir, logsFileName, Ingestor } from "../converter/ingest.js";
+import { ingestPending, ingestChanged, ingestOne, logsDir, rawDir, logsFileName, Ingestor } from "../converter/ingest.js";
 import { convert, STRUCTURED_SCHEMA_VERSION } from "../converter/convert.js";
 import type { RawRun } from "../../shared/raw-types.js";
 import type { RunRecord } from "../../shared/run-types.js";
@@ -376,5 +376,37 @@ describe("Ingestor — boot pass + poll-driven watch (the index.ts wiring)", () 
     writeRaw(rawRun({ id: "sess-1:9", run: 9 }));
     vi.advanceTimersByTime(5_000); // several poll intervals — but the interval was cleared
     expect(readLogs()).toEqual([]);
+  });
+});
+
+
+describe("incremental raw ingestion", () => {
+  it("matches full ingestion and retries malformed named files", () => {
+    writeRaw(rawRun());
+    ingestPending(dir);
+    const next = rawRun({ id: "sess-1:2", run: 2, ts: 1_700_000_100 });
+    writeRaw(next);
+    expect(ingestChanged(dir, ["sess-1-2.json"])).toBe(1);
+    const before = readLogs().sort((a, b) => a.id.localeCompare(b.id));
+    expect(ingestPending(dir)).toEqual({ raws: 0, legacy: 0 });
+    expect(readLogs().sort((a, b) => a.id.localeCompare(b.id))).toEqual(before);
+    writeFileSync(join(rawDir(dir), "retry.json"), "{");
+    expect(ingestChanged(dir, ["retry.json"])).toBe(0);
+    writeFileSync(join(rawDir(dir), "retry.json"), JSON.stringify(rawRun({ id: "retry", run: 3 })));
+    expect(ingestChanged(dir, ["retry.json"])).toBe(1);
+  });
+
+  it("periodically repairs a stale same-count log even without a raw watch event", () => {
+    vi.useFakeTimers();
+    const rec = new Ingestor();
+    try {
+      writeRaw(rawRun());
+      rec.setDir(dir); rec.start();
+      const log = readdirSync(logsDir(dir))[0];
+      const record = readLogs()[0];
+      writeFileSync(join(logsDir(dir), log), JSON.stringify({ ...record, structuredSchemaVersion: 0 }));
+      vi.advanceTimersByTime(31_000);
+      expect(readLogs()[0].structuredSchemaVersion).toBe(STRUCTURED_SCHEMA_VERSION);
+    } finally { rec.stop(); vi.useRealTimers(); }
   });
 });

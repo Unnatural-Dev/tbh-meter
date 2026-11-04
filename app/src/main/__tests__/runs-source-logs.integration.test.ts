@@ -638,3 +638,31 @@ describe("getRunsSource singleton", () => {
     expect(getRunsSource()).toBe(getRunsSource());
   });
 });
+
+
+describe("RunsSource changed-file reload", () => {
+  it("matches full reload after replacements and deletes", () => {
+    const a = writeConvertedLog(rawRun());
+    const b = writeConvertedLog(rawRun({ id: "sess-1:2", run: 2, ts: 1_700_000_100 }));
+    const source = new RunsSource(); source.setDir(dir); source.reloadNow();
+    writeLog({ ...a, totalDamage: 42 });
+    rmSync(join(logsPath(), logsFileName(b)));
+    source.reloadChanged([logsFileName(a), logsFileName(b)]);
+    const incremental = structuredClone(source.all());
+    source.reloadNow();
+    expect(source.all()).toEqual(incremental);
+    expect(source.all()).toHaveLength(1);
+    expect(source.all()[0].totalDamage).toBe(42);
+  });
+
+  it("periodically sees a same-count replacement when no watch callback arrives", () => {
+    vi.useFakeTimers();
+    const a = writeConvertedLog(rawRun());
+    const source = makeSource();
+    try {
+      writeLog({ ...a, totalDamage: 42 });
+      vi.advanceTimersByTime(31_000);
+      expect(source.all()[0].totalDamage).toBe(42);
+    } finally { source.stop(); vi.useRealTimers(); }
+  });
+});

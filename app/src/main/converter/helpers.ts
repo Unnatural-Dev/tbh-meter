@@ -43,10 +43,7 @@ export function resolveStage(act: number | null, stageNo: number | null): string
  *  (`ref = clear_time if clear_time else max(measured, 1)`), now the app's single source. Returns
  *  0 for non-finite/negative damage (defensive — never NaN/Infinity into the record). */
 export function computeDps(totalDamage: number, clearTime: number, duration: number): number {
-  if (!Number.isFinite(totalDamage) || totalDamage <= 0) return 0;
-  const ref = clearTime > 0 ? clearTime : Math.max(duration, 1);
-  if (!Number.isFinite(ref) || ref <= 0) return 0;
-  return totalDamage / ref;
+  return computeRate(totalDamage, clearTime, duration);
 }
 
 /** A per-second rate (gold/sec, xp/sec) = gained / reference-seconds, same reference choice as

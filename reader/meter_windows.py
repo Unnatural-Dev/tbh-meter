@@ -1489,7 +1489,7 @@ def run(hz, output_dir, debug=False):
                             close(handle)
                     time.sleep(3)
                 continue
-            # Orchestrated DPS: reads the mobs in a BATCH (game.models.live_monsters via Reader) and
+            # Orchestrated DPS: reads the mobs in a BATCH (game.models.live_monster_snapshot) and
             # delegates to metrics.dps.DpsTracker — damage = Σ HP drop + finishing blow, the 5s window
             # and total live in the tracker (reset per run via new_run). Here only what's the
             # meter's: the smoothed DPS for the screen. Kills = monster identities the run's tracker

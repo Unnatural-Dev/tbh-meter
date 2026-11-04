@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveOutputDir } from "./settings.js";
+import { safeLogId } from "./log-file-name.js";
 
 // The meter keeps ONE folder (the visible meter folder under the user's home) with a logs/
 // subfolder holding ONE structured JSON per run. Since the redesign (PR2/PR3) the reader writes
@@ -56,12 +57,6 @@ function rmIfExists(path: string): void {
   } catch {
     // best effort — already gone, or a transient error; never crash a prune over one file
   }
-}
-
-/** Filesystem-safe stem of a run id in a logs filename (`<ts>_<safeId>.json`). MUST mirror
- *  converter/ingest.logsFileName so the two never disagree on a file's name. */
-function safeLogId(id: string): string {
-  return id.replace(/[^A-Za-z0-9._-]/g, "-");
 }
 
 /**
