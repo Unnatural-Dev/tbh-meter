@@ -12,9 +12,9 @@
 <img src=".github/assets/meter-hero.png" width="820" alt="TBH Meter — the Runs history window with the live overlay docked at the bottom-left">
 
 
-_Unaffiliated, open-source fan project — not made by or endorsed by the game's developer._
 
-_A maintained fork of [mad-labs-org/tbh-meter](https://github.com/mad-labs-org/tbh-meter), maintained by [Unnatural-Dev](https://github.com/Unnatural-Dev). Original project by Mad Labs._
+
+maintained by [Unnatural-Dev](https://github.com/Unnatural-Dev). Original project by Mad Labs._
 
 </div>
 
