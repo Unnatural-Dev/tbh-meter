@@ -13,22 +13,35 @@ stage_info), so it adds no scan. If a signature can't be found live (e.g. not in
 offset is kept and nothing is overwritten — so this NEVER makes a working build worse.
 
 The four signatures:
-  Monster.STAGE_KEY          — the int32 on a live monster whose value is a key in stage_info.
-  UnitHealthController.HP_MAX— the float in the HealthController that is >= HP_CURRENT(0x40) and > 0.
+  Monster.STAGE_KEY          — the int32 on a live monster whose value is a key in stage_info, ONE key
+                               dominating the hits (every mob of a stage carries the same one).
+  UnitHealthController.HP_MAX— the float in the HealthController that is >= HP_CURRENT(0x40) and > 0,
+                               and strictly above HP_CURRENT on at least one damaged monster.
   StageManager.HERO_LIST +   — the Il2CppArray of 1..12 ptrs on a StageManager whose elements, at some
-  Unit.CACHE                   cache offset, resolve INFO->HeroKey in hero_cat (discovered together).
+  Unit.CACHE                   cache offset, resolve INFO->HeroKey to a plausible key in hero_cat
+                               (discovered together).
 
-Results are cached per-fingerprint IN MEMORY for the session (CALIBRATED dict). Discovery is
-read-only; it writes nothing to the game and nothing to disk.
+STATIC FIRST: when the static offset still satisfies its signature it is kept, even if another slot in
+the window also qualifies. A non-static slot only wins as the UNIQUE best match; any tie between
+non-static slots is ambiguous and keeps the static. So a coincidental match elsewhere in a window can
+never override a working static. Scan windows live in config.offsets.FieldCalibWindows.
+
+Discovery is read-only; it writes nothing to the game and nothing to disk.
 """
-from config.offsets import (Array, Unit, Monster, UnitHealthController,
-                            StageManager, MonsterSpawnManager, HeroRuntime, HeroInfoData)
+from collections import Counter
 
-# Scan windows (bytes), generous enough to absorb several future recompiles around each current value.
-_STAGE_KEY_WIN = range(0x3C0, 0x460, 0x4)     # around Monster.STAGE_KEY (1.3.0: 0x410)
-_HP_MAX_WIN = range(0x40, 0x60, 0x4)          # around UnitHealthController.HP_MAX (1.3.0: 0x50), >= HP_CURRENT
-_HERO_LIST_WIN = range(0x10, 0xA8, 0x8)       # around StageManager.HERO_LIST (1.3.0: 0x68)
-_CACHE_WIN = range(0x380, 0x430, 0x8)         # around Unit.CACHE (1.3.0: 0x3D8)
+from config.offsets import (Array, Unit, Monster, UnitHealthController, StageManager,
+                            MonsterSpawnManager, HeroRuntime, HeroInfoData,
+                            FieldCalibWindows as Win)
+
+# A real heroKey is <class><nn> (101, 201, ... 601). The HeroInfoData scan also yields junk keys
+# (1, 2, 4, 8, 14, 17, 65535, 1376256, ...) that would widen the hero-list false-positive surface.
+_HERO_KEY_MIN, _HERO_KEY_MAX = 100, 10_000
+_MIN_PTR = 0x10000          # below this a "pointer" is a small int, not a heap address
+_MAX_HERO_SLOTS = 12
+_MAX_HP = 1e9
+_HP_TOLERANCE = 1.01        # cur may sit a hair above max on a float round-trip
+_SAMPLE_MONSTERS = 8
 
 
 def _ri32(reader, a):
@@ -41,115 +54,148 @@ def _rptr(reader, a):
     except Exception: return None
 
 
-def _first_live_monster(reader, msm):
-    if not msm:
+def _rf32(reader, a):
+    try:
+        v = reader.read_struct(a, "<f")
+    except Exception:
         return None
+    return v[0] if v else None
+
+
+def _sample_monsters(reader, msm):
     ml = _rptr(reader, msm + MonsterSpawnManager.MONSTER_LIST)
-    mons = reader.list_ptrs(ml, cap=600) if ml else []
-    return mons[0] if mons else None
+    return (reader.list_ptrs(ml, cap=600) if ml else [])[:_SAMPLE_MONSTERS]
+
+
+def _majority(hits, sampled):
+    return sampled > 0 and hits * 2 >= sampled
+
+
+def _pick(qualified, static):
+    """`qualified` = {offset: score}. Static wins if it qualifies; otherwise the unique best score
+    wins; a tie between non-static offsets is ambiguous -> None (the static fallback stays)."""
+    if not qualified:
+        return None
+    if static in qualified:
+        return static
+    best = max(qualified.values())
+    top = [o for o, c in qualified.items() if c == best]
+    return top[0] if len(top) == 1 else None
 
 
 def discover_stage_key(reader, msm, stage_info):
-    """The int32 on a live monster whose value is a key in the stage catalog. Confirm the SAME offset
-    on a few monsters (so a coincidental catalog-valued field in one mob doesn't win)."""
+    """The int32 on a live monster whose value is a key in the stage catalog. ONE key must sit at the
+    offset on a majority of the sampled monsters AND outnumber every other catalog value there combined
+    (every mob of a stage carries the same key; a coincidental catalog-valued field varies by mob)."""
     if not msm or not stage_info:
         return None
-    ml = _rptr(reader, msm + MonsterSpawnManager.MONSTER_LIST)
-    mons = reader.list_ptrs(ml, cap=600) if ml else []
+    mons = _sample_monsters(reader, msm)
     if not mons:
         return None
     keys = set(stage_info.keys())
-    # tally catalog-hit offset across up to 8 monsters; require the winner on >= half of them
-    tally = {}
-    sampled = 0
-    for u in mons[:8]:
-        sampled += 1
-        for off in _STAGE_KEY_WIN:
+    seen = {}  # offset -> [catalog values hit]
+    for u in mons:
+        for off in Win.STAGE_KEY:
             v = _ri32(reader, u + off)
             if v is not None and v in keys:
-                tally[off] = tally.get(off, 0) + 1
-    if not tally:
-        return None
-    off, hits = max(tally.items(), key=lambda kv: kv[1])
-    return off if hits >= max(1, sampled // 2) else None
+                seen.setdefault(off, []).append(v)
+    qualified = {}
+    for o, vs in seen.items():
+        top = Counter(vs).most_common(1)[0][1]
+        if _majority(top, len(mons)) and top * 2 > len(vs):
+            qualified[o] = top
+    return _pick(qualified, Monster.STAGE_KEY)
 
 
 def discover_hp_max(reader, msm):
-    """The float in the HealthController that is >0 and >= HP_CURRENT(0x40). Confirm across monsters."""
+    """The float in the HealthController that is >0 and >= HP_CURRENT(0x40) on a majority of the
+    sampled monsters, AND strictly above HP_CURRENT on at least one (a slot that only ever equals
+    current is a copy of it, not the max). Static first; otherwise the smallest such offset (the max
+    sits right after current)."""
     if not msm:
         return None
-    ml = _rptr(reader, msm + MonsterSpawnManager.MONSTER_LIST)
-    mons = reader.list_ptrs(ml, cap=600) if ml else []
-    if not mons:
-        return None
-    tally = {}
+    tally, above = {}, set()
     sampled = 0
-    for u in mons[:8]:
+    for u in _sample_monsters(reader, msm):
         hc = _rptr(reader, u + Unit.HEALTH_CONTROLLER)
         if not hc:
             continue
-        cur = reader.read_struct(hc + UnitHealthController.HP_CURRENT, "<f")
-        cur = cur[0] if cur else None
+        cur = _rf32(reader, hc + UnitHealthController.HP_CURRENT)
         if cur is None or not (cur > 0):
             continue
         sampled += 1
-        for off in _HP_MAX_WIN:
+        for off in Win.HP_MAX:
             if off == UnitHealthController.HP_CURRENT:
                 continue
-            v = reader.read_struct(hc + off, "<f")
-            v = v[0] if v else None
-            if v is not None and v > 0 and v == v and cur <= v * 1.01 and v < 1e9:
+            v = _rf32(reader, hc + off)
+            if v is not None and v > 0 and v == v and cur <= v * _HP_TOLERANCE and v < _MAX_HP:
                 tally[off] = tally.get(off, 0) + 1
-    if not tally or sampled == 0:
+                if v > cur:
+                    above.add(off)
+    good = sorted(o for o, c in tally.items() if o in above and _majority(c, sampled))
+    if not good:
         return None
-    # prefer the SMALLEST qualifying offset consistent across most monsters (max is the field closest
-    # after current); require it on >= half the sampled monsters.
-    good = {o: c for o, c in tally.items() if c >= max(1, sampled // 2)}
-    return min(good) if good else None
+    if UnitHealthController.HP_MAX in good:
+        return UnitHealthController.HP_MAX
+    return good[0]
+
+
+def _plausible_hero_keys(hero_cat):
+    return {k for k in hero_cat if _HERO_KEY_MIN <= k < _HERO_KEY_MAX}
+
+
+def _hero_match(reader, els, cache_off, hero_keys):
+    """Number of elements matched if EVERY element resolves a plausible heroKey at `cache_off` with
+    >= 2 DISTINCT keys when there are >= 2 elements (defeats the "same key repeated" false positive,
+    e.g. [2,2,2]); else 0."""
+    seen = set()
+    for e in els:
+        uf = _rptr(reader, e + cache_off)
+        if not uf or uf < _MIN_PTR:
+            return 0
+        info = _rptr(reader, uf + HeroRuntime.INFO)
+        if not info or info < _MIN_PTR:
+            return 0
+        hk = _ri32(reader, info + HeroInfoData.HERO_KEY)
+        if hk not in hero_keys:
+            return 0
+        seen.add(hk)
+    return len(els) if len(seen) >= min(2, len(els)) else 0
 
 
 def discover_hero_list_and_cache(reader, sm_list, hero_cat):
     """Discover StageManager.HERO_LIST and Unit.CACHE TOGETHER: an array of 1..12 ptrs whose elements,
-    at some cache offset, resolve HeroRuntime.INFO -> HeroInfoData.HERO_KEY in hero_cat. Returns
-    (hero_list_off, cache_off) or (None, None)."""
+    at some cache offset, resolve HeroRuntime.INFO -> HeroInfoData.HERO_KEY to a plausible hero_cat key.
+    The static pair wins as soon as it matches on any StageManager (stops the scan); otherwise the
+    pair with the unique largest match wins, and a tie between pairs is ambiguous (a solo party
+    matching at two pairs is exactly the weak case). Returns (hero_list_off, cache_off) or (None, None)."""
     if not sm_list or not hero_cat:
         return None, None
-    hero_keys = set(hero_cat.keys())
-    best = None  # (matched, n, hero_list_off, cache_off)
+    hero_keys = _plausible_hero_keys(hero_cat)
+    if not hero_keys:
+        return None, None
+    static = (StageManager.HERO_LIST, Unit.CACHE)
+    best = {}  # (hero_list_off, cache_off) -> largest matched count on any StageManager
     for sm in sm_list:
-        for hl_off in _HERO_LIST_WIN:
+        for hl_off in Win.HERO_LIST:
             hl = _rptr(reader, sm + hl_off)
-            if not hl or hl < 0x10000:
+            if not hl or hl < _MIN_PTR:
                 continue
             n = _ri32(reader, hl + Array.MAX_LENGTH)
-            if n is None or not (0 < n <= 12):
+            if n is None or not (0 < n <= _MAX_HERO_SLOTS):
                 continue
-            els = [p for p in reader.read_array_ptrs(hl, n) if p and p > 0x10000]
+            els = [p for p in reader.read_array_ptrs(hl, n) if p and p > _MIN_PTR]
             if not els:
                 continue
-            for cache_off in _CACHE_WIN:
-                matched = 0
-                seen = set()
-                for e in els:
-                    uf = _rptr(reader, e + cache_off)
-                    if not uf or uf < 0x10000:
-                        continue
-                    info = _rptr(reader, uf + HeroRuntime.INFO)
-                    if not info or info < 0x10000:
-                        continue
-                    hk = _ri32(reader, info + HeroInfoData.HERO_KEY)
-                    if hk in hero_keys:
-                        matched += 1
-                        seen.add(hk)
-                # require ALL elements matched AND at least 2 DISTINCT hero keys (defeats the
-                # "same key repeated" false positive, e.g. [2,2,2]).
-                if matched == len(els) and len(seen) >= min(2, len(els)):
-                    cand = (matched, len(els), hl_off, cache_off)
-                    if best is None or cand[0] > best[0]:
-                        best = cand
-    if best:
-        return best[2], best[3]
-    return None, None
+            for cache_off in Win.CACHE:
+                matched = _hero_match(reader, els, cache_off, hero_keys)
+                if not matched:
+                    continue
+                pair = (hl_off, cache_off)
+                if pair == static:
+                    return static
+                best[pair] = max(best.get(pair, 0), matched)
+    return _pick(best, static) or (None, None)
 
 
 def calibrate(reader, msm, sm_list, stage_info, hero_cat, log=lambda *a: None):

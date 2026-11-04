@@ -175,6 +175,26 @@ class MonsterSpawnManager:             # singleton (dump.cs ~343052)
     # restart-detection is needed on 1.3.0.
     DEAD_MONSTER_LIST = 0x30          # List<Unit> dead — DEGRADED on 1.3.0 (empty; restart detection off).
     SUMMONED_LIST = 0x30              # List<Unit> summoned — DEGRADED on 1.3.0 (summon DPS not aggregated).
+                                       # Aliases DEAD_MONSTER_LIST on 1.3.0: live_monsters skips a list
+                                       # whose offset aliases another one (never iterates dead units as
+                                       # summons).
+
+
+def _without(win, start, size, read=4):
+    """`win` minus every slot whose `read`-byte read overlaps [start, start + size) — keeps a blind
+    scan off a DO-NOT-READ field."""
+    return tuple(o for o in win if o + read <= start or o >= start + size)
+
+
+class FieldCalibWindows:               # scan windows for game/field_calib (bytes), NOT game fields.
+    # Generous on purpose: each spans several recompiles of drift around the current static. If a build
+    # moves a field OUTSIDE its window, widen it here (and update the static) — the only maintenance.
+    # Monster.CACHE_OBSCURED is a pointer slot (8 bytes) inside the stage-key window: carved out so the
+    # scan never reads Obscured data (docs/invariants/obscured-data-offlimits).
+    STAGE_KEY = _without(range(0x3C0, 0x460, 0x4), Monster.CACHE_OBSCURED, 0x8)  # Monster.STAGE_KEY
+    HP_MAX = tuple(range(0x40, 0x60, 0x4))        # UnitHealthController.HP_MAX
+    HERO_LIST = tuple(range(0x10, 0xA8, 0x8))     # StageManager.HERO_LIST
+    CACHE = tuple(range(0x380, 0x430, 0x8))       # Unit.CACHE (on Hero)
 
 
 class LogManager:                      # singleton (dump.cs ~339652)
