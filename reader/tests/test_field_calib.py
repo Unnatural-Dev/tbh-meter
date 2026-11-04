@@ -409,3 +409,57 @@ def test_live_monster_snapshot_marks_failed_reads_invalid():
     assert models.live_monster_snapshot(r, msm) is None
     r.wptr(msm + MonsterSpawnManager.MONSTER_LIST, 0)
     assert models.live_monster_snapshot(r, msm) == []
+
+
+@pytest.mark.parametrize("failed_read", ["controller", "hp"])
+def test_live_monsters_keeps_readable_hp_including_zero(monkeypatch, failed_read):
+    """One unreadable unit must not hide readable units or turn zero HP into a failed read."""
+    from config.offsets import List
+    from game import models
+
+    r = ByteReader()
+    msm, lst, items = 0x1000, 0x2800, 0x3000
+    units = (0x10000, 0x20000, 0x30000)
+    r.wptr(msm + MonsterSpawnManager.MONSTER_LIST, lst)
+    r.wi32(lst + List.SIZE, len(units))
+    r.wptr(lst + List.ITEMS, items)
+    for index, (unit, hp) in enumerate(zip(units, (100.0, 0.0, 50.0), strict=True)):
+        r.wptr(items + Array.DATA + index * 8, unit)
+        _hp(r, unit, unit + 0x8000, hp, {UnitHealthController.HP_MAX: 200.0})
+    unreadable = units[-1]
+    bad = (unreadable + Unit.HEALTH_CONTROLLER if failed_read == "controller"
+           else unreadable + 0x8000 + UnitHealthController.HP_CURRENT)
+    read = r.read
+    monkeypatch.setattr(r, "read", lambda addr, size: None if addr == bad else read(addr, size))
+
+    assert list(models.live_monsters(r, msm)) == [
+        (units[0], 100.0, 200.0), (units[1], 0.0, 200.0),
+    ]
+
+
+@pytest.mark.parametrize("failed_read", ["list", "size", "items", "array"])
+def test_live_monsters_discards_healthy_list_when_summons_unreadable(monkeypatch, failed_read):
+    """Validation must reject a partial snapshot even when the main list has readable HP."""
+    from config.offsets import List
+    from game import models
+
+    monkeypatch.setattr(MonsterSpawnManager, "SUMMONED_LIST", 0x70)
+    r = ByteReader()
+    msm, alive, summoned = 0x1000, 0x10000, 0x20000
+    for field, items, unit in ((MonsterSpawnManager.MONSTER_LIST, 0x3000, alive),
+                               (MonsterSpawnManager.SUMMONED_LIST, 0x5000, summoned)):
+        lst = items - 0x800
+        r.wptr(msm + field, lst)
+        r.wi32(lst + List.SIZE, 1)
+        r.wptr(lst + List.ITEMS, items)
+        r.wptr(items + Array.DATA, unit)
+        _hp(r, unit, unit + 0x8000, 100.0, {UnitHealthController.HP_MAX: 200.0})
+    assert [u for u, *_ in models.live_monsters(r, msm)] == [alive, summoned]
+    bad = {"list": msm + MonsterSpawnManager.SUMMONED_LIST,
+           "size": 0x4800 + List.SIZE, "items": 0x4800 + List.ITEMS,
+           "array": 0x5000 + Array.DATA}[failed_read]
+    read = r.read
+    monkeypatch.setattr(r, "read", lambda addr, size: None if addr == bad else read(addr, size))
+
+    assert models.live_monster_snapshot(r, msm) is None
+    assert list(models.live_monsters(r, msm)) == []
