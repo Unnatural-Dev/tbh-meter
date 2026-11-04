@@ -3,9 +3,9 @@
   "version": "0.45.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.32.1",
+  "packageManager": "pnpm@10.34.9",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "main": "./out/main/index.js",
   "scripts": {
@@ -17,21 +17,28 @@
     "check": "eslint src && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "pretest": "node scripts/sync-data.mjs",
     "test": "vitest run",
-    "dist:win": "pnpm build && electron-builder --win",
-    "dist:dir": "pnpm build && electron-builder --dir"
+    "test:packaging": "node --test scripts/package-windows.node-test.mjs",
+    "package:win": "node scripts/package-windows.mjs --win",
+    "dist:win": "node node_modules/pnpm/bin/pnpm.cjs run build && node scripts/package-windows.mjs --win",
+    "dist:dir": "node node_modules/pnpm/bin/pnpm.cjs run build && node scripts/package-windows.mjs --dir"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron-toolkit/utils": "^4.0.0",
     "clsx": "^2.1.1",
-    "electron-updater": "^6.8.9",
+    "electron-updater": "^6.8.11",
     "lucide-react": "^1.21.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.6.0"
   },
   "pnpm": {
+    "overrides": {
+      "brace-expansion@<1.1.21": "^1.1.21",
+      "browserslist@<4.28.7": "^4.28.7",
+      "minimatch@>=7.0.0 <11.0.1": "^11.0.1"
+    },
     "onlyBuiltDependencies": [
       "electron",
       "esbuild",
@@ -40,24 +47,25 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
-    "@tailwindcss/vite": "^4.3.1",
+    "@tailwindcss/vite": "^4.3.4",
     "@types/node": "^22.15.30",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.1.5",
     "@vitejs/plugin-react": "^5.2.0",
-    "electron": "^42.4.1",
-    "electron-builder": "^26.15.3",
+    "electron": "^43.8.7",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^3.1.0",
-    "eslint": "^9.28.0",
+    "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.6.0",
+    "pnpm": "10.34.9",
     "prettier": "^3.8.4",
     "tailwindcss": "^4.3.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.61.1",
-    "vite": "^6.4.3",
-    "vitest": "^4.1.9"
+    "typescript-eslint": "^8.72.1",
+    "vite": "^6.4.5",
+    "vitest": "^4.1.12"
   }
 }

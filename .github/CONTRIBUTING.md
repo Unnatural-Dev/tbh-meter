@@ -19,7 +19,7 @@ resolution, memory offsets, calibration) and the knowledge base there is the sou
 
 ## Prerequisites
 
-- **Node 22** and **pnpm** (`corepack enable` or install pnpm directly) — for the app.
+- **Node 22.13 or newer** and **pnpm** (`corepack enable` or install pnpm directly) — for the app.
 - **Python 3.12** — for the reader.
 - **Windows** to actually attach to the game. The app UI, lint, and tests run on macOS/Linux too;
   only the live memory-reading path is Windows-only.
@@ -39,6 +39,36 @@ pnpm test     # vitest — must pass
 (git-ignored) runtime dirs. **Never hand-edit `app/src/shared/data/` or
 `app/src/renderer/public/{sprites,heroes}/`** — they are regenerated. To change bundled game data,
 refresh the snapshot (below) instead.
+
+### Dependency security updates
+
+Keep Electron on a supported release line; its embedded Chromium and Node.js ship with the app.
+Keep `electron-updater` bundled in the main process (see `app/electron.vite.config.ts`); its
+`js-yaml` dependency must also resolve to a patched version. Audit the full lockfile, including
+build tools, with `pnpm audit` after dependency updates.
+
+CI runs both `pnpm audit --prod` and `pnpm audit` at all severity levels after a frozen-lockfile
+install. Findings and registry errors fail the job; do not add ignores or reduce the audit level.
+
+Windows packaging uses `pnpm package:win` after `pnpm build`, or `pnpm dist:win` for both steps.
+The packaging launcher validates the exact local pnpm version against `packageManager`, then uses
+that CLI and puts its local executable first on PATH for electron-builder's dependency collector.
+It fails if local pnpm is missing or mismatched, rather than falling back to a global installation.
+`pnpm test:packaging` exercises version checks, hostile host PATH, argument forwarding, and failures.
+Use these packaging entry points in build scripts instead of invoking electron-builder directly.
+
+`app/package.json` has narrowly version-scoped `pnpm.overrides` for transitive security fixes:
+
+- `brace-expansion` 1.x: require 1.1.21 or later for expansion denial-of-service fixes.
+- `browserslist`: require 4.28.7 or later for custom-stats and cache exhaustion fixes; this also
+  refreshes its affected `baseline-browser-mapping` dependency.
+- `minimatch` 7–10: use the patched 11.x API for
+  [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249). This crosses a major
+  boundary because the advisory has no patched 7–10 release. Verify lint, tests, bundling, and
+  unpacked packaging when changing it; leave the separate legacy 3.x dependency intact.
+
+Remove an override when the parent packages resolve patched versions without it. Do not suppress
+audit findings to make these checks pass.
 
 ## Working on the reader
 
