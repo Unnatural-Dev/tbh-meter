@@ -16,6 +16,8 @@ import { STRUCTURED_SCHEMA_VERSION } from "../converter/convert.js";
 import { deriveSessions } from "../sessions.js";
 import { readSessionCuts } from "../session-stats.js";
 
+import { HISTORY_RECONCILE_MS, historyJsonName } from "../history-watch.js";
+
 const POLL_INTERVAL_MS = 1_000;
 // Coalesce fs.watch bursts (an atomic tmp+rename write fires 2+ events; one finished run can fire
 // several) into ONE trailing reload. Short enough to stay imperceptible next to the 1s poll.
@@ -536,12 +538,15 @@ export class RunsSource extends EventEmitter {
   // record is the PRISTINE parse — reload hands a SHALLOW CLONE downstream, because deriveSessions
   // writes the derived sessionId onto the working set and the session-scoped dedup is only safe
   // while every v2 run still carries the on-disk "" at dedup time, exactly like a fresh parse
-  // (see the reload comments). `record: null` is a tombstone: parsing is deterministic, so an
-  // unparseable / not-a-run file stays skipped without re-parsing until its bytes change.
-  // Validated by a fresh stat every reload; pruned to the live dir listing; cleared on setDir/stop.
+  // (see the reload comments). Null records are retried on reload, including after transient reads.
+  // Full reloads stat every file; named reloads invalidate named entries and reuse other cached
+  // metadata. Pruned to the live dir listing; cleared on setDir/stop.
   private fileCache = new Map<string, { mtimeMs: number; size: number; record: RunRecord | null }>();
   // Trailing-edge debounce for fs.watch-driven reloads (the poll path stays direct: it is already
   // 1s-gated and the tests drive it deterministically with fake timers).
+  private pendingNames = new Set<string>();
+  private pendingFull = false;
+  private lastReconcile = 0;
   private watchDebounce: ReturnType<typeof setTimeout> | null = null;
 
   private logsPath(): string | null {
@@ -609,6 +614,8 @@ export class RunsSource extends EventEmitter {
   }
 
   private clearWatch(): void {
+    this.pendingNames.clear();
+    this.pendingFull = false;
     if (this.watcher) {
       try {
         this.watcher.close();
@@ -630,12 +637,33 @@ export class RunsSource extends EventEmitter {
   /** Coalesce a burst of fs.watch events into ONE reload (trailing edge). A single finished run
    *  fires several dir events (tmp create + rename, sometimes more); reloading on each one was
    *  pure repeat work. */
-  private scheduleReload(): void {
+  private scheduleReload(filename: string | Buffer | null = null): void {
+    const name = historyJsonName(filename);
+    if (name === undefined) return;
+    if (name === null) this.pendingFull = true;
+    else this.pendingNames.add(name);
     if (this.watchDebounce) clearTimeout(this.watchDebounce);
     this.watchDebounce = setTimeout(() => {
       this.watchDebounce = null;
-      this.reload();
+      const names = this.pendingNames;
+      const full = this.pendingFull;
+      this.pendingNames = new Set();
+      this.pendingFull = false;
+      if (full) this.reload();
+      else this.reloadChanged(names);
     }, WATCH_DEBOUNCE_MS);
+  }
+
+  /** Refresh named files while retaining full deduplication/session derivation. */
+  reloadChanged(filenames: Iterable<string>): void {
+    const changed = new Set<string>();
+    for (const filename of filenames) {
+      if (historyJsonName(filename) === filename) {
+        changed.add(filename);
+        this.fileCache.delete(filename);
+      }
+    }
+    this.reload(changed);
   }
 
   private rewatch(): void {
@@ -647,7 +675,7 @@ export class RunsSource extends EventEmitter {
     // unreliable across atomic-rename / SMB, so we also poll by entry count as a fallback.
     try {
       if (existsSync(path)) {
-        this.watcher = watch(path, () => this.scheduleReload());
+        this.watcher = watch(path, (_event, filename) => this.scheduleReload(filename));
       }
     } catch {
       this.watcher = null;
@@ -663,11 +691,11 @@ export class RunsSource extends EventEmitter {
           return;
         }
         const count = jsonNames(p).length;
-        if (count !== this.lastCount) {
+        if (count !== this.lastCount || Date.now() - this.lastReconcile >= HISTORY_RECONCILE_MS) {
           // (Re)attach fs.watch if it was never set up (dir appeared later).
           if (!this.watcher) {
             try {
-              this.watcher = watch(p, () => this.scheduleReload());
+              this.watcher = watch(p, (_event, filename) => this.scheduleReload(filename));
             } catch {
               this.watcher = null;
             }
@@ -683,9 +711,10 @@ export class RunsSource extends EventEmitter {
   /** Read every logs/<id>.json, load (parse + coerce, NO re-derive), dedup session-scoped, sort
    *  newest-first, emit "changed". A stale log (older structured schema) triggers an on-use
    *  re-convert (fire-and-forget; the fresh log lands and the watcher reloads). */
-  private reload(): void {
+  private reload(changed?: ReadonlySet<string>): void {
     const path = this.logsPath();
     if (!path || !existsSync(path)) {
+      this.fileCache.clear();
       if (this.records.length > 0) {
         this.records = [];
         this.lastCount = -1;
@@ -702,26 +731,26 @@ export class RunsSource extends EventEmitter {
       return;
     }
     this.lastCount = names.length;
+    if (!changed) this.lastReconcile = Date.now();
 
     const out: RunRecord[] = [];
     for (const name of names) {
       const filePath = join(path, name);
-      // Stat first: an unchanged (mtimeMs, size) means unchanged bytes (logs are only ever
-      // REPLACED via tmp+rename, which advances the mtime), so the cached parse is reusable and
-      // the O(history) read+parse storm collapses to O(changed files) per reload.
+      // Named-event reloads reuse untouched files without a stat. Full reconciliation stats
+      // every file, recovering missed events; unchanged metadata reuses the pristine parse.
       let mtimeMs: number;
       let size: number;
+      const cached = this.fileCache.get(name);
       try {
-        const st = statSync(filePath);
+        const st = changed && !changed.has(name) && cached ? cached : statSync(filePath);
         mtimeMs = st.mtimeMs;
         size = st.size;
       } catch {
         continue; // vanished between readdir and stat (a clear mid-pass) — treat as gone
       }
-      const cached = this.fileCache.get(name);
       let record: RunRecord | null;
-      if (cached && cached.mtimeMs === mtimeMs && cached.size === size) {
-        record = cached.record; // unchanged bytes — reuse the pristine parse (or its tombstone)
+      if (cached && cached.record !== null && cached.mtimeMs === mtimeMs && cached.size === size) {
+        record = cached.record; // unchanged bytes — reuse the pristine parse
       } else {
         record = parseLogFile(filePath);
         this.fileCache.set(name, { mtimeMs, size, record });
@@ -806,13 +835,13 @@ export class RunsSource extends EventEmitter {
 // --------------------------------------------------------------------------- //
 
 function jsonNames(dir: string): string[] {
-  return readdirSync(dir).filter((n) => n.endsWith(".json") && !n.endsWith(".tmp"));
+  return readdirSync(dir).filter((n) => historyJsonName(n) === n);
 }
 
 /** Parse ONE logs/<name>.json with the defensive guards reload always applied: an un-parseable /
  *  half-written file, a non-object, a loader throw, or a not-a-run record (no id / bad ts) all
- *  yield null — never a throw. Deterministic on the file's bytes, so the per-file cache can hold
- *  the result (including the null tombstone) until the bytes change. */
+ *  yield null — never a throw. Successful parses are cached until a named event or changed
+ *  metadata invalidates them; null results are retried on the next reload. */
 function parseLogFile(filePath: string): RunRecord | null {
   let parsed: unknown;
   try {

@@ -31,6 +31,7 @@ import type { AnyRawRun } from "../../shared/raw-types.js";
 import type { RunRecord } from "../../shared/run-types.js";
 import { convert, STRUCTURED_SCHEMA_VERSION } from "./convert.js";
 import { convertLegacy } from "./legacy.js";
+import { HISTORY_RECONCILE_MS, historyJsonName } from "../history-watch.js";
 import { safeLogId } from "../log-file-name.js";
 
 const POLL_INTERVAL_MS = 1_000;
@@ -39,17 +40,16 @@ const WATCH_DEBOUNCE_MS = 150;
 
 // --------------------------------------------------------------------------- //
 // Per-file stat caches. The FILES stay the only STATE (the design's key
-// simplification holds: nothing here decides differently than a cold pass — a
-// fresh stat every pass validates each entry, so any external change is seen
-// immediately and a new process rebuilds everything on boot). What the caches
+// simplification holds: full reconciliation retains the cold-pass behavior —
+// full passes stat each entry to recover missed events; named watcher passes
+// inspect only the named raws, and a new process rebuilds everything on boot). What the caches
 // memoize is the PURE FACT a pass extracts from an unchanged file (its run `id`
 // + structured version), because the pass used to readFileSync + JSON.parse
 // EVERY raw/ and logs/ file at watch/poll rate — O(history) main-thread parse
 // per finished run, the confirmed cause of "the meter got slow until I cleared
 // the run history" (raws are the big ones: they carry runes/inventory/stash).
-// `id: null` is a tombstone: parsing is deterministic, so an unreadable /
-// foreign file stays skipped without re-parsing until its bytes change.
-// Keyed per directory; pruned to the live listing every pass.
+// Null IDs are retried on full passes: a transient read failure must not become permanent.
+// Keyed per directory; pruned to the live listing on full passes.
 // --------------------------------------------------------------------------- //
 
 interface LogFileFacts {
@@ -63,6 +63,7 @@ interface RawFileFacts {
   size: number;
   id: string | null;
 }
+const logIndexByDir = new Map<string, Map<string, { path: string; version: number | null }>>();
 const logFactsByDir = new Map<string, Map<string, LogFileFacts>>();
 const rawFactsByDir = new Map<string, Map<string, RawFileFacts>>();
 // runs.jsonl is FROZEN (the reader stopped writing it in Redesign 2), yet every pass re-parsed the
@@ -127,7 +128,7 @@ function writeStructured(dir: string, record: RunRecord): boolean {
 /** Index logs/ by the structured record `id` -> { path, version }. Keyed by the id INSIDE each file
  *  (not the filename) so a raw and a legacy line for the same run map to the same slot regardless of
  *  how the file was named. Built once per ingest pass — from the per-file facts cache, so only
- *  files whose (mtimeMs, size) changed since the last pass are re-parsed (the converter's atomic
+ *  new/changed files and prior read/parse failures are re-parsed (the converter's atomic
  *  tmp+rename always advances the mtime of a rewritten log). */
 function indexLogs(dir: string): Map<string, { path: string; version: number | null }> {
   const out = new Map<string, { path: string; version: number | null }>();
@@ -140,7 +141,7 @@ function indexLogs(dir: string): Map<string, { path: string; version: number | n
   const facts = factsFor(logFactsByDir, dir);
   const live = new Set<string>();
   for (const name of names) {
-    if (!name.endsWith(".json")) continue;
+    if (historyJsonName(name) !== name) continue;
     live.add(name);
     const path = join(dir, name);
     let st: { mtimeMs: number; size: number };
@@ -150,9 +151,8 @@ function indexLogs(dir: string): Map<string, { path: string; version: number | n
       continue; // vanished between readdir and stat — treat as gone
     }
     let f = facts.get(name);
-    if (!f || f.mtimeMs !== st.mtimeMs || f.size !== st.size) {
-      // (Re)parse only a new/changed file. A corrupt log or a foreign JSON tombstones to id null
-      // (skipped until its bytes change — it'll be overwritten if a raw still backs it).
+    if (!f || f.id === null || f.mtimeMs !== st.mtimeMs || f.size !== st.size) {
+      // Reparse new/changed files and prior failures, including transient unreadable logs.
       let id: string | null = null;
       let version: number | null = null;
       try {
@@ -163,7 +163,7 @@ function indexLogs(dir: string): Map<string, { path: string; version: number | n
             typeof parsed.structuredSchemaVersion === "number" ? parsed.structuredSchemaVersion : null;
         }
       } catch {
-        // corrupt log — tombstoned below
+        // Unreadable or corrupt log — retain a null ID for retry on the next full pass.
       }
       f = { mtimeMs: st.mtimeMs, size: st.size, id, version };
       facts.set(name, f);
@@ -193,7 +193,7 @@ function readRaw(path: string): AnyRawRun | null {
  *
  *  Perf: the pass used to parse EVERY raw on EVERY pass just to learn its `id` before skipping it
  *  (raws are the heaviest files — runes/inventory/stash). The facts cache keeps name -> id for
- *  unchanged (mtimeMs, size) files, so a steady-state pass is readdir + stats with ZERO parses;
+ *  unchanged (mtimeMs, size) files, so a full pass over valid, up-to-date files needs no parses;
  *  the full readRaw happens only for a new/changed file or when a conversion is actually due. */
 function ingestNewRaws(
   rawPath: string,
@@ -210,7 +210,7 @@ function ingestNewRaws(
   const live = new Set<string>();
   let written = 0;
   for (const name of names) {
-    if (!name.endsWith(".json") || name.endsWith(".tmp.json") || name.endsWith(".json.tmp")) continue;
+    if (historyJsonName(name) !== name) continue;
     live.add(name);
     const path = join(rawPath, name);
     let st: { mtimeMs: number; size: number };
@@ -220,14 +220,14 @@ function ingestNewRaws(
       continue; // vanished between readdir and stat — treat as gone
     }
     let f = facts.get(name);
-    // Parsed lazily: on a facts miss (new/changed file), and again iff a conversion is due.
+    // Parse new/changed files and prior failures; read a cached raw again if conversion is due.
     let raw: AnyRawRun | null = null;
-    if (!f || f.mtimeMs !== st.mtimeMs || f.size !== st.size) {
+    if (!f || f.id === null || f.mtimeMs !== st.mtimeMs || f.size !== st.size) {
       raw = readRaw(path);
       f = { mtimeMs: st.mtimeMs, size: st.size, id: raw && typeof raw.id === "string" ? raw.id : null };
       facts.set(name, f);
     }
-    if (f.id === null) continue; // unreadable / not a raw — tombstoned until its bytes change
+    if (f.id === null) continue; // unreadable / not a raw — retried on the next full pass
     const existing = logs.get(f.id);
     // Convert when there is no log, OR the log was produced by an older converter (staleness).
     if (existing && existing.version != null && existing.version >= STRUCTURED_SCHEMA_VERSION) continue;
@@ -344,7 +344,40 @@ export function ingestPending(dataDir: string): { raws: number; legacy: number }
   const raws = ingestNewRaws(rawDir(dataDir), logsPath, logs);
   // Legacy AFTER raws, sharing the same index, so a raw for a run always wins over its legacy line.
   const legacy = migrateLegacyRuns(dataDir, logsPath, logs);
+  logIndexByDir.set(dataDir, logs);
   return { raws, legacy };
+}
+
+/** Inspect only watcher-named raws; periodic full passes reconcile missed events. */
+export function ingestChanged(dataDir: string, filenames: Iterable<string>): number {
+  const logs = logIndexByDir.get(dataDir);
+  if (!logs) return ingestPending(dataDir).raws;
+  let written = 0;
+  for (const filename of filenames) {
+    if (historyJsonName(filename) !== filename) continue;
+    const raw = readRaw(join(rawDir(dataDir), filename));
+    if (!raw || typeof raw.id !== "string") {
+      rawFactsByDir.get(rawDir(dataDir))?.delete(filename);
+      continue;
+    }
+    const existing = logs.get(raw.id);
+    if (existing) {
+      try {
+        const record = JSON.parse(readFileSync(existing.path, "utf-8")) as Partial<RunRecord>;
+        if (record.id === raw.id && typeof record.structuredSchemaVersion === "number" &&
+            record.structuredSchemaVersion >= STRUCTURED_SCHEMA_VERSION) continue;
+      } catch { /* unreadable log: retry conversion below */ }
+    }
+    try {
+      const record = convert(raw);
+      mkdirSync(logsDir(dataDir), { recursive: true });
+      if (writeStructured(logsDir(dataDir), record)) {
+        logs.set(record.id, { path: join(logsDir(dataDir), logsFileName(record)), version: STRUCTURED_SCHEMA_VERSION });
+        written++;
+      }
+    } catch { /* malformed raw or transient I/O: full reconciliation retries */ }
+  }
+  return written;
 }
 
 /** Re-convert a single raw/<id> file unconditionally (the PR4 "on-use staleness" trigger: a log was
@@ -377,6 +410,9 @@ export class Ingestor {
   private watcher: FSWatcher | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
   private lastRawCount = -1;
+  private lastReconcile = 0;
+  private pendingNames = new Set<string>();
+  private pendingFull = false;
   private started = false;
   // Trailing-edge debounce for fs.watch-driven passes (the poll path stays direct: it is already
   // 1s-gated and the tests drive it deterministically with fake timers).
@@ -387,6 +423,7 @@ export class Ingestor {
     // Drop the OLD dir's facts so an abandoned output dir never pins its maps for the process
     // lifetime (the new dir starts cold and rebuilds from disk, exactly like a boot).
     if (this.dir) {
+      logIndexByDir.delete(this.dir);
       logFactsByDir.delete(logsDir(this.dir));
       rawFactsByDir.delete(rawDir(this.dir));
       legacyCleanByDir.delete(this.dir);
@@ -416,12 +453,16 @@ export class Ingestor {
     if (!this.dir) return;
     try {
       ingestPending(this.dir);
+      this.lastRawCount = readdirSync(rawDir(this.dir)).filter((n) => historyJsonName(n) === n).length;
+      this.lastReconcile = Date.now();
     } catch {
       // best effort — an ingest failure must never crash the app; next tick retries
     }
   }
 
   private clearWatch(): void {
+    this.pendingNames.clear();
+    this.pendingFull = false;
     if (this.watcher) {
       try {
         this.watcher.close();
@@ -441,11 +482,25 @@ export class Ingestor {
   }
 
   /** Coalesce a burst of fs.watch events (tmp create + rename per written raw) into ONE pass. */
-  private schedulePass(): void {
+  private schedulePass(filename: string | Buffer | null = null): void {
+    const name = historyJsonName(filename);
+    if (name === undefined) return;
+    if (name === null) this.pendingFull = true;
+    else this.pendingNames.add(name);
     if (this.watchDebounce) clearTimeout(this.watchDebounce);
     this.watchDebounce = setTimeout(() => {
       this.watchDebounce = null;
-      this.runPass();
+      const names = this.pendingNames;
+      const full = this.pendingFull;
+      this.pendingNames = new Set();
+      this.pendingFull = false;
+      if (full) this.runPass();
+      else if (this.dir) {
+        try {
+          ingestChanged(this.dir, names);
+          this.lastRawCount = readdirSync(rawDir(this.dir)).filter((n) => historyJsonName(n) === n).length;
+        } catch { this.runPass(); }
+      }
     }, WATCH_DEBOUNCE_MS);
   }
 
@@ -457,7 +512,7 @@ export class Ingestor {
     try {
       if (existsSync(raw)) {
         // A new raw file (a run finished) -> ingest. fs.watch fires on dir entries changing.
-        this.watcher = watch(raw, () => this.schedulePass());
+        this.watcher = watch(raw, (_event, filename) => this.schedulePass(filename));
       }
     } catch {
       this.watcher = null;
@@ -470,12 +525,12 @@ export class Ingestor {
       const r = rawDir(this.dir);
       try {
         if (!existsSync(r)) return;
-        const count = readdirSync(r).filter((n) => n.endsWith(".json") && !n.endsWith(".tmp")).length;
-        if (count !== this.lastRawCount) {
+        const count = readdirSync(r).filter((n) => historyJsonName(n) === n).length;
+        if (count !== this.lastRawCount || Date.now() - this.lastReconcile >= HISTORY_RECONCILE_MS) {
           this.lastRawCount = count;
           if (!this.watcher) {
             try {
-              this.watcher = watch(r, () => this.schedulePass());
+              this.watcher = watch(r, (_event, filename) => this.schedulePass(filename));
             } catch {
               this.watcher = null;
             }
