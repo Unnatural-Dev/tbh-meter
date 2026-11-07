@@ -5,6 +5,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import appIconAsset from "../../resources/icon.png?asset";
 import {
   loadSettings,
+  flushPendingSettings,
   getSettings,
   applyLiveSettings,
   applyListSettings,
@@ -647,6 +648,8 @@ app.on("will-quit", () => runIfPrimary(isPrimaryInstance, () => {
   // A secondary instance (lost the lock) started NOTHING and must not reap here:
   // stopReader() -> killAllReaders() kills tbh-reader.exe BY IMAGE NAME, which would
   // tear down the PRIMARY's reader. Only the owner reaps (runIfPrimary skips the rest).
+  // Window teardown is complete, so persist even changes queued during close.
+  flushPendingSettings();
   // Stop the reader (suppress respawn + kill the tree) BEFORE the sources stop, so
   // no late writes race the shutdown.
   stopReader();
