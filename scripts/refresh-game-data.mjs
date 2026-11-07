@@ -36,10 +36,15 @@ if (!existsSync(dataSrc)) {
 const jsonDest = join(root, "data", "json");
 const spritesDest = join(root, "data", "sprites");
 const heroesDest = join(root, "data", "heroes");
+// The planner has a separate empirical TBH Index snapshot. Refresh it explicitly with
+// refresh-chest-planner.mjs; a game-data refresh must not silently discard its assumptions.
+const plannerSnapshotPath = join(jsonDest, "chest-planner.json");
+const plannerSnapshot = existsSync(plannerSnapshotPath) ? readFileSync(plannerSnapshotPath) : null;
 for (const d of [jsonDest, spritesDest, heroesDest]) {
   rmSync(d, { recursive: true, force: true }); // start clean so stale files don't linger
   mkdirSync(d, { recursive: true });
 }
+if (plannerSnapshot) writeFileSync(plannerSnapshotPath, plannerSnapshot);
 
 // Full copies: monsters/buffs/buffGroups feed the live overlay's stage-threat panel.
 const files = [

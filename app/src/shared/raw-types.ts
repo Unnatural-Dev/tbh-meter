@@ -186,6 +186,8 @@ export interface RawRunV2 extends RawObserved {
   // drop chance (boxDrops base × `DropChance` rune) and the −1-wave correction.
   /** Account-wide rune tree at run close (`key`→`level`). */
   runes?: Field<RawRune[]>;
+  /** Account-wide pet ownership at run close; absent in older v2 runs. */
+  pets?: Field<{ key: number; unlocked: boolean }[]>;
   /** Items in inventory slots at run close (SAVE snapshot, id-only). */
   inventory?: Field<RawSnapshotItem[]>;
   /** Items in stash slots at run close — separate from inventory. */

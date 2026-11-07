@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   FolderOpen,
   Download,
@@ -7,8 +7,6 @@ import {
   AlertCircle,
   Loader2,
   Trash2,
-  Minus,
-  Plus,
   FileText,
 } from "lucide-react";
 import type { AppSettings, UpdateStatus } from "../../../shared/ipc-types.js";
@@ -20,9 +18,6 @@ import { clampMinDuration } from "~/lib/run-filter";
 import {
   clampMaxRuns,
   MIN_MAX_RUNS,
-  clampCooldownMin,
-  COOLDOWN_MIN_MINUTES,
-  COOLDOWN_MAX_MINUTES,
 } from "../../../shared/ipc-types.js";
 import { chestSprite } from "~/lib/game-data";
 import { DiscordIcon } from "~/components/DiscordIcon";
@@ -151,10 +146,6 @@ export function SettingsView({ settings, onSettingsChange }: SettingsViewProps) 
 
       <div className="border-t border-surface-600 pt-3">
         <NotificationsRow settings={settings} onSettingsChange={onSettingsChange} />
-      </div>
-
-      <div className="border-t border-surface-600 pt-3">
-        <BlueChestTrackerRow settings={settings} onSettingsChange={onSettingsChange} />
       </div>
 
       <div className="border-t border-surface-600 pt-3">
@@ -633,101 +624,7 @@ function NotificationsRow({
   );
 }
 
-/**
- * Blue-chest tracker config (#3 follow-up): the cooldown length, the track-outside-route toggle,
- * and Clear all. The live cards, the master on/off toggle and the chest-level "route" pin chips
- * live in the Tracker tab; this is the rest of the config. Reuses the cooldowns.* i18n.
- */
-function BlueChestTrackerRow({
-  settings,
-  onSettingsChange,
-}: {
-  settings: AppSettings;
-  onSettingsChange: (partial: Partial<AppSettings>) => void;
-}) {
-  const t = useT();
-  const min = clampCooldownMin(settings.chestCooldownMin);
-  const step = (delta: number): void => onSettingsChange({ chestCooldownMin: clampCooldownMin(min + delta) });
 
-  // "Clear all" with a 2-click inline confirm (the app avoids native dialogs for minor actions).
-  const [armed, setArmed] = useState(false);
-  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (armTimer.current) clearTimeout(armTimer.current); }, []);
-  const clickClear = (): void => {
-    if (armed) {
-      if (armTimer.current) clearTimeout(armTimer.current);
-      setArmed(false);
-      window.meter.clearCooldowns();
-    } else {
-      setArmed(true);
-      armTimer.current = setTimeout(() => setArmed(false), 3000);
-    }
-  };
-
-  return (
-    <div>
-      <p className="text-xs font-medium text-zinc-300">{t("cooldowns.title")}</p>
-      <p className="mt-0.5 text-xs text-zinc-500">{t("cooldowns.desc")}</p>
-
-      {/* Cooldown length stepper — kept next to its label, not pushed to the edge. */}
-      <div className="mt-2 flex items-center gap-3">
-        <span className="text-xs text-zinc-400">{t("cooldowns.timerLabel")}</span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            aria-label={t("cooldowns.timerLabel")}
-            disabled={min <= COOLDOWN_MIN_MINUTES}
-            onClick={() => step(-1)}
-            className="grid size-5 cursor-pointer place-items-center rounded bg-surface-700 text-zinc-300 hover:bg-surface-600 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Minus className="size-3" />
-          </button>
-          <span className="w-8 text-center font-mono text-xs tabular-nums text-zinc-200">{min}</span>
-          <button
-            type="button"
-            aria-label={t("cooldowns.timerLabel")}
-            disabled={min >= COOLDOWN_MAX_MINUTES}
-            onClick={() => step(1)}
-            className="grid size-5 cursor-pointer place-items-center rounded bg-surface-700 text-zinc-300 hover:bg-surface-600 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Plus className="size-3" />
-          </button>
-        </div>
-      </div>
-
-      {/* Track outside route. */}
-      <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-zinc-400">
-        <input
-          type="checkbox"
-          checked={settings.trackOutsideRoute}
-          onChange={(e) => onSettingsChange({ trackOutsideRoute: e.target.checked })}
-          className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-brand-500"
-        />
-        <span>
-          {t("cooldowns.trackOutside")}
-          <span className="block text-[11px] text-zinc-500">{t("cooldowns.trackOutsideDesc")}</span>
-        </span>
-      </label>
-
-      {/* Clear all tracked drops + history (keeps the route). */}
-      <button
-        type="button"
-        onClick={clickClear}
-        className={cn(
-          "mt-3 flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors",
-          armed
-            ? "bg-rose-600/90 text-white hover:bg-rose-600"
-            : "bg-surface-700 text-zinc-300 hover:bg-surface-600 hover:text-rose-300",
-        )}
-      >
-        <Trash2 className="size-3" />
-        {armed ? t("cooldowns.clearAllConfirm") : t("cooldowns.clearAll")}
-      </button>
-    </div>
-  );
-}
-
-/** Local diagnostics log viewer entry point (for bug reports). */
 function DiagnosticsRow({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
   const t = useT();
   return (
