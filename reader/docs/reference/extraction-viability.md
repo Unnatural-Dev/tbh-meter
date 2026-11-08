@@ -16,6 +16,7 @@ code_anchors:
   - game/save.py::read_gold
   - game/build.py::read_build
   - game/build.py::read_account_snapshot
+  - game/build.py::read_pets
   - game/models.py::live_monsters
   - config/offsets.py::Unit.CORE_STATS_OBSCURED
 asserts:
@@ -55,7 +56,7 @@ dividing line:
 | **Per-hero DPS** | ❌ unviable | — (the game doesn't store per-unit damage; only TEAM HP-delta) | n/a |
 | **Damage/stat per attribute** | ❌ unviable | — (not in memory; see damage model) | n/a |
 | **Account snapshot** (runes + inventory + stash) | ✅ viable | `PlayerSaveData.RUNES` (`RuneSaveData.KEY`/`LEVEL`) + `PlayerSaveData.INVENTORY_SLOTS`/`STASH` (`UNIQUE_ID` → join on `PlayerSaveData.ITEMS`), read once at close by `game/build.py::read_account_snapshot` | PLAIN |
-| **Pets** | ❌ not-extracted | — (account-wide, doesn't change per run; **no symbol in the current code**) | — |
+| **Pets** | ✅ viable | `game/build.py::read_pets`: `PlayerSaveData.PETS` → `PetSaveData.KEY`/`IS_UNLOCK`, once at close in the additive raw `pets` envelope. Array element and row classes must validate as `PetSaveData`; any unreadable row invalidates the snapshot. Live-confirmed on 1.3.2 against the owner's all-unlocked collection across three runs, including abandoned runs; locked/empty/unreadable cases are covered synthetically. | PLAIN |
 | **Readable name** (hero/skill/item) | ❌ unviable | — (memory only has the i18n key; the string-table is another subsystem) | n/a |
 
 ¹ **Live gold is PLAIN** — the reader does NOT read the gold-runtime `ObscuredLong`. It reads the

@@ -391,7 +391,7 @@ def build_raw_record(*, ts_ms, run_outcome, game_version, duration,
                      stage_key, act, stage_no, difficulty, total_mobs,
                      mobs, total_damage, clear_time,
                      gold, gold_ok, gold_source, xp_gained, xp_ok, xp_source,
-                     drops, heroes, heroes_ok, runes, inventory, stash):
+                     drops, heroes, heroes_ok, runes, inventory, stash, pets=None):
     """Builds the RAW v2 record (raw/<id>.json) from ALREADY-read values — RAW observation, NO
     deriving (dps/rates/labels/partial/skip/status are the CONVERTER's job, app). Each DATA field goes
     in an ok/err envelope (shared.envelope) so the converter can distinguish "didn't-read" from "read zero"
@@ -429,12 +429,13 @@ def build_raw_record(*, ts_ms, run_outcome, game_version, duration,
         "xp_source": xp_source,
         "drops": ok(drops),
         "heroes": ok(heroes) if heroes_ok else err("party live off (StageManager unresolved)"),
-        # Account snapshot at close (SAVE source): runes + inventory + stash, RAW, written on
+        # Account snapshot at close (SAVE source): runes + pets + inventory + stash, RAW, written on
         # EVERY run. In an ok/err ENVELOPE like the other data fields: None (DIDN'T-READ) -> err, list -> ok
         # (incl. [] = GENUINELY empty). Never ok([]) on a read failure — that would be the gold:0 bug
         # back again. Additive WITHOUT bumping RAW_SCHEMA_VERSION: the converter reads by name and ignores
         # an unknown key (convert.ts), app intact; the wiki derives later (real drop-rate / wave correction).
         "runes": ok(runes) if runes is not None else err("runes unread (save/list unreadable)"),
+        "pets": ok(pets) if pets is not None else err("pets unread (save/list/type unreadable)"),
         "inventory": ok(inventory) if inventory is not None else err("inventory unread (save/list unreadable)"),
         "stash": ok(stash) if stash is not None else err("stash unread (save/list unreadable)"),
     }
@@ -1365,10 +1366,11 @@ def run(hz, output_dir, debug=False):
              f"clear={clear_time}s partial={partial} gold_ok={gold_ok}/{ge_src} "
              f"xp_ok={xp_ok}/{xp_src} party_degraded={party_degraded} "
              f"heroes_out={len(heroes_out)} live_keys={len(live_keys)}")
-        # Account snapshot at close (SAVE source): RAW runes + inventory + stash. Reuses `fp`
+        # Account snapshot at close (SAVE source): RAW runes + pets + inventory + stash. Reuses `fp`
         # (the live psd already picked above) and `item_cat` (run()'s free-var). never-raises; DIDN'T-READ ->
         # None (becomes err in the record below), never a silent [].
         runes, inventory, stash = build.read_account_snapshot(reader, fp, item_cat)
+        pets = build.read_pets(reader, fp)
         # RAW v2 record (raw/<id>.json), 1 file per run, atomic write. ONLY observation — no
         # dps/rates/partial/mode/stage-string/totals (the converter derives them). Read fields go
         # in an ok/err envelope. The `dps`/`partial` above are only for the summary/live; they do NOT enter here.
@@ -1382,7 +1384,7 @@ def run(hz, output_dir, debug=False):
             gold=gold_gain, gold_ok=gold_ok, gold_source=ge_src,
             xp_gained=xp_best, xp_ok=xp_ok, xp_source=xp_src,
             drops=R["drops"], heroes=heroes_out, heroes_ok=(not party_degraded),
-            runes=runes, inventory=inventory, stash=stash)
+            runes=runes, inventory=inventory, stash=stash, pets=pets)
         rec_path = os.path.join(raw_dir, f"{rec['id']}.json")   # raw/<ts_ms>.json (id = ts in ms)
         if status == "success":
             # SUCCESS pends instead of writing NOW: the clear's boss box (GetBoxLog mt=1/2)

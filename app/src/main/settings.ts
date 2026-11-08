@@ -1,3 +1,4 @@
+import { sanitizePlannerSettings } from "../shared/chest-planner.js";
 import { app } from "electron";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -94,6 +95,7 @@ export function loadSettings(): AppSettings {
       chestCooldowns: migrateChestCooldowns(parsed.chestCooldowns, true),
       chestDropLog: migrateChestCooldowns(parsed.chestDropLog, false),
       chestRoute: sanitizeRoute(parsed.chestRoute),
+      chestPlanner: sanitizePlannerSettings(parsed.chestPlanner),
       chestCooldownMin: clampCooldownMin(parsed.chestCooldownMin),
     };
   } catch {
@@ -107,7 +109,9 @@ export function getSettings(): AppSettings {
 }
 
 export function updateSettings(partial: Partial<AppSettings>): AppSettings {
-  cache = { ...cache, ...partial };
+  cache = { ...cache, ...partial,
+    ...(partial.chestPlanner !== undefined ? { chestPlanner: sanitizePlannerSettings(partial.chestPlanner) } : {}),
+  };
   scheduleWrite();
   return { ...cache };
 }

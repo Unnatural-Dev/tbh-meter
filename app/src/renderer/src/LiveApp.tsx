@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { LiveView } from "~/views/LiveView";
-import { OverlayCooldowns } from "~/components/CooldownCard";
 import { getOverlayExtent, onOverlayExtent } from "~/lib/overlay-extent";
 import { clampFontScale } from "../../shared/ipc-types.js";
 import { useT } from "~/lib/i18n";
@@ -151,11 +150,6 @@ export default function LiveApp() {
       className="relative w-screen overflow-hidden rounded-lg border border-brand-600/40 bg-surface-900/90 text-white shadow-2xl backdrop-blur"
     >
       <LiveView onStartDrag={onTitlePointerDown} onOpenLogs={() => window.meter.openListWindow()} />
-
-      {/* Active blue-chest cooldowns — below the meter, ALWAYS rendered (even while the meter
-          is offline/between runs, since a 14-min chest keeps cooling). Self-fetching; renders
-          nothing when there are none. The window height is content-pinned, so it grows to fit. */}
-      <OverlayCooldowns />
 
       {/* Right-edge handle: drag to resize the window width (height stays content-pinned). */}
       <div

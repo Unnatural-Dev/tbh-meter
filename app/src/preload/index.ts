@@ -25,6 +25,7 @@ const meter: MeterApi = {
   resolvedOutputDir: () => ipcRenderer.invoke("meter:resolved-output-dir"),
 
   listRuns: () => ipcRenderer.invoke("meter:list-runs"),
+  getChestPlannerInputs: () => ipcRenderer.invoke("meter:chest-planner-inputs"),
   getRun: (id) => ipcRenderer.invoke("meter:get-run", id),
   clearRuns: () => ipcRenderer.invoke("meter:clear-runs"),
   toggleFavorite: (runId) => ipcRenderer.invoke("meter:toggle-favorite", runId),

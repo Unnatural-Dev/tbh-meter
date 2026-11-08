@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS } from "../../shared/ipc-types.js";
 import { RunListView } from "~/views/RunListView";
 import { RunDetailView } from "~/views/RunDetailView";
 import { SettingsView } from "~/views/SettingsView";
-import { CooldownsView } from "~/views/CooldownsView";
+import { ChestPlannerView } from "~/views/ChestPlannerView";
 import { PlannerView } from "~/views/PlannerView";
 
 export default function ListApp() {
@@ -56,7 +56,7 @@ export default function ListApp() {
               onClearDurationFilter={() => handleSettingsChange({ minDurationSec: null })}
             />
           ))}
-        {activeTab === "cooldowns" && <CooldownsView />}
+        {activeTab === "cooldowns" && <ChestPlannerView settings={settings} onSettingsChange={handleSettingsChange} />}
         {activeTab === "planner" && <PlannerView />}
         {activeTab === "settings" && (
           <SettingsView settings={settings} onSettingsChange={handleSettingsChange} />

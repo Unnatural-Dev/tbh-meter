@@ -1,3 +1,4 @@
+import { loadChestPlannerInputs } from "./chest-planner-inputs.js";
 import { app, ipcMain, dialog, shell, BrowserWindow } from "electron";
 import { dataDir } from "./logs-archive.js";
 import { getReaderStatus, readerEvents, getReaderState, retryReader } from "./reader-process.js";
@@ -10,12 +11,10 @@ import { getRunsSource, setFavoritePredicate } from "./sources/runs-source.js";
 import { isFavorite, toggleFavorite, invalidateFavoritesCache } from "./favorites-store.js";
 import { getLiveSource } from "./sources/live-source.js";
 import {
-  initCooldownTracker,
   getCooldownState,
   dismissCooldown,
   hideCooldownInOverlay,
   clearAllCooldowns,
-  rearmNotifications,
 } from "./cooldown-tracker.js";
 import { initDropNotifier } from "./drop-notifier.js";
 import {
@@ -90,9 +89,6 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     // Lowering (or enabling) the max-runs cap should take effect immediately — prune the surplus
     // now instead of waiting for the next finished run. Only when the cap key was actually sent.
     if (changed.maxRuns !== undefined) pruneToMaxRuns();
-    // The "ready" notification timers are armed with the cooldown length at schedule time; when
-    // the user changes it, re-derive every pending timer (the renderer countdowns already do).
-    if (changed.chestCooldownMin !== undefined) rearmNotifications();
     // Keep every OTHER window's settings copy in sync (language/font-scale changes in
     // the runs window must reach the live overlay + splash live). The sender already
     // has the value optimistically; receiving the echo is harmless.
@@ -113,6 +109,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle("meter:resolved-output-dir", () => resolveOutputDir());
 
   ipcMain.handle("meter:list-runs", () => listRuns());
+  ipcMain.handle("meter:chest-planner-inputs", () => loadChestPlannerInputs(resolveOutputDir(), listRuns()));
   ipcMain.handle("meter:get-run", (_event, id: string) => getRun(id));
   ipcMain.handle("meter:clear-runs", () => clearAllRuns());
   // Favorite toggle (Feature 3): flip the sidecar flag, then reload the source so its index
@@ -223,11 +220,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     }
   });
   getLiveSource().on("live", (snap: LiveSnapshot | null) => broadcast("meter:live", snap));
-  // Blue-chest cooldown tracker: watches the same live stream, persists + broadcasts
-  // cooldown state on "meter:cooldowns", and fires the OS "ready" notification.
-  initCooldownTracker(broadcast);
+  // Countdown-based readiness was retired in favor of the offline Chest Planner.
+  // Keep legacy saved drop history and IPC reads intact; no timer is armed.
   // Per-chest-type drop notifier: watches the same live stream and fires an OS
-  // notification when an enabled chest type drops. Independent of the tracker above.
+  // notification when an enabled chest type drops. Independent of chest planning.
   initDropNotifier();
   // Auto-update status -> every open window (same fan-out as the sources above).
   onUpdateStatus((status) => broadcast("meter:update-status", status));

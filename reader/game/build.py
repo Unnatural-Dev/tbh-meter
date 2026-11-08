@@ -15,8 +15,9 @@ from config.offsets import (HeroRuntime, StatsHolder, Dict, DictFloat, Array, Li
                             StageManager, HeroInfoData, HeroSaveData, PlayerSaveData,
                             AttributeSaveData, ItemSaveData, ItemEnchant,
                             name_map, EItemParts, EGradeType, EEquipClassType, ERecipeType,
-                            StatType, RuneSaveData, InventorySaveData, StashSaveData)
+                            StatType, RuneSaveData, PetSaveData, InventorySaveData, StashSaveData, Class)
 from game import obscured
+from il2cpp.typeinfo import class_name
 from shared.utils import resource_path
 
 _PARTS = name_map(EItemParts)
@@ -477,6 +478,52 @@ def _list_or_none(reader, list_obj, cap):
     if not b or len(b) < size * 8:
         return None
     return [p for p in struct.unpack(f"<{size}Q", b) if p]
+
+
+def read_pets(reader, psd):
+    """Saved account collection [{key, unlocked}], or None on ANY unreadable/unsupported row.
+
+    Validate the backing array's element class even for size zero: a shifted save-list offset must
+    not become a falsely known empty pet collection. The layout was confirmed on 1.3.2 against
+    the owner's all-unlocked collection; guards reject mismatched types rather than guessing ownership.
+    """
+    if not psd:
+        return None
+    try:
+        pets = reader.rptr(psd + PlayerSaveData.PETS)
+        if not pets:
+            return None
+        size = reader.ri32(pets + List.SIZE)
+        if size is None or size < 0 or size > 5000:
+            return None
+        items = reader.rptr(pets + List.ITEMS)
+        if not items:
+            return None
+        array_class = reader.rptr(items)
+        element_class = reader.rptr(array_class + Class.ELEMENT_CLASS) if array_class else None
+        if class_name(reader, element_class) != "PetSaveData":
+            return None
+        capacity = reader.ru64(items + Array.MAX_LENGTH)
+        if capacity is None or capacity < size:
+            return None
+        data = reader.read(items + Array.DATA, size * 8) if size else b""
+        if data is None or len(data) != size * 8:
+            return None
+        out, seen = [], set()
+        for pet in struct.unpack(f"<{size}Q", data):
+            if not pet or class_name(reader, reader.rptr(pet)) != "PetSaveData":
+                return None
+            key = reader.ri32(pet + PetSaveData.KEY)
+            unlocked = reader.read(pet + PetSaveData.IS_UNLOCK, 1)
+            if key is None or key <= 0 or key in seen or unlocked not in (b"\x00", b"\x01"):
+                return None
+            seen.add(key)
+            out.append({"key": key, "unlocked": unlocked == b"\x01"})
+        if reader.ri32(pets + List.SIZE) != size or reader.rptr(pets + List.ITEMS) != items:
+            return None
+        return out
+    except Exception:
+        return None
 
 
 def read_runes(reader, psd):

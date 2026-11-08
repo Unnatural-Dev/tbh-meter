@@ -1,0 +1,3820 @@
+{
+  "source": "https://tbhindex.com/wiki/chest-tracker",
+  "assets": [
+    "tbhChestNames-Bg-Bn4MX.js",
+    "tbhStages-iYOY8MBj.js",
+    "statsReference-FDwUq5lh.js",
+    "tbhPets-D6Qt1R8d.js"
+  ],
+  "transitionSeconds": 2.45,
+  "plagueCombinedCapPerHour": 24.3,
+  "maxedBonuses": {
+    "generalBossPercent": 885,
+    "generalNormalPercent": 491,
+    "plagueBossPercent": 550,
+    "plagueNormalPercent": 250
+  },
+  "runeBonuses": {
+    "101": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 10
+      }
+    ],
+    "102": [
+      {
+        "field": "generalBossPercent",
+        "percent": 20
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 20
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 20
+      }
+    ],
+    "103": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      }
+    ],
+    "104": [
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      }
+    ],
+    "105": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      }
+    ],
+    "106": [
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      }
+    ],
+    "107": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "108": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "109": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "110": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "111": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "112": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "113": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "114": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "115": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "116": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "117": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "118": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "119": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "120": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "121": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "122": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "123": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "124": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "125": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "126": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "127": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "128": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "129": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "130": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "131": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 5
+      }
+    ],
+    "132": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      },
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "1053": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      },
+      {
+        "field": "generalNormalPercent",
+        "percent": 7
+      }
+    ],
+    "1211": [
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      }
+    ],
+    "1271": [
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      }
+    ],
+    "1302": [
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      }
+    ],
+    "1311": [
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 10
+      }
+    ],
+    "1322": [
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 30
+      }
+    ],
+    "11629": [
+      {
+        "field": "plagueNormalPercent",
+        "percent": 20
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 20
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 20
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 20
+      },
+      {
+        "field": "plagueNormalPercent",
+        "percent": 20
+      }
+    ],
+    "11649": [
+      {
+        "field": "plagueBossPercent",
+        "percent": 50
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 50
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 50
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 50
+      },
+      {
+        "field": "plagueBossPercent",
+        "percent": 50
+      }
+    ]
+  },
+  "petBonuses": {
+    "1001": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 10
+      }
+    ],
+    "1002": [],
+    "1003": [
+      {
+        "field": "generalBossPercent",
+        "percent": 10
+      }
+    ],
+    "1004": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 15
+      }
+    ],
+    "1005": [
+      {
+        "field": "generalBossPercent",
+        "percent": 15
+      }
+    ],
+    "2001": [],
+    "2002": [],
+    "6001": [],
+    "6002": [],
+    "6003": [
+      {
+        "field": "generalNormalPercent",
+        "percent": 20
+      }
+    ]
+  },
+  "boxes": {
+    "910011": {
+      "name": "Normal Monster Box 1",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 120
+    },
+    "910051": {
+      "name": "Normal Monster Box 2",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 120
+    },
+    "910101": {
+      "name": "Normal Monster Box 3",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 120
+    },
+    "910151": {
+      "name": "Normal Monster Box Lv15",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "910201": {
+      "name": "Normal Monster Box Lv20",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "910301": {
+      "name": "Normal Monster Box Lv30",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "910401": {
+      "name": "Normal Monster Box Lv40",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "910501": {
+      "name": "Normal Monster Box Lv50",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "910651": {
+      "name": "Normal Monster Box Lv65",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "910801": {
+      "name": "Normal Monster Box Lv80",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "910901": {
+      "name": "Normal Monster Box Lv90",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 180
+    },
+    "915001": {
+      "name": "Contaminated Normal Box (Nightmare) 1-5",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915006": {
+      "name": "Contaminated Normal Box (Nightmare) 6-10",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915011": {
+      "name": "Contaminated Normal Box (Nightmare) 11-15",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915016": {
+      "name": "Contaminated Normal Box (Nightmare) 16-20",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915101": {
+      "name": "Contaminated Normal Box (Hell) 1-5",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915106": {
+      "name": "Contaminated Normal Box (Hell) 6-10",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915111": {
+      "name": "Contaminated Normal Box (Hell) 11-15",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915116": {
+      "name": "Contaminated Normal Box (Hell) 16-20",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915201": {
+      "name": "Contaminated Normal Box (Torment) 1-5",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915206": {
+      "name": "Contaminated Normal Box (Torment) 6-10",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915211": {
+      "name": "Contaminated Normal Box (Torment) 11-15",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "915216": {
+      "name": "Contaminated Normal Box (Torment) 16-20",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 240
+    },
+    "920011": {
+      "name": "Stage Boss Box 4",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 120
+    },
+    "920051": {
+      "name": "Stage Boss Box 5",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 180
+    },
+    "920101": {
+      "name": "Stage Boss Box 7",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 240
+    },
+    "920151": {
+      "name": "Stage Boss Box Lv15",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "920201": {
+      "name": "Stage Boss Box Lv20",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "920301": {
+      "name": "Stage Boss Box Lv30",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "920401": {
+      "name": "Stage Boss Box Lv40",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "920501": {
+      "name": "Stage Boss Box Lv50",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "920651": {
+      "name": "Stage Boss Box Lv65",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "920801": {
+      "name": "Stage Boss Box Lv80",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "920901": {
+      "name": "Stage Boss Box Lv90",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 300
+    },
+    "925001": {
+      "name": "Contaminated Stage Box (Nightmare) 1",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925002": {
+      "name": "Contaminated Stage Box (Nightmare) 2",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925003": {
+      "name": "Contaminated Stage Box (Nightmare) 3",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925004": {
+      "name": "Contaminated Stage Box (Nightmare) 4",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925005": {
+      "name": "Contaminated Stage Box (Nightmare) 5",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925006": {
+      "name": "Contaminated Stage Box (Nightmare) 6",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925007": {
+      "name": "Contaminated Stage Box (Nightmare) 7",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925008": {
+      "name": "Contaminated Stage Box (Nightmare) 8",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925009": {
+      "name": "Contaminated Stage Box (Nightmare) 9",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925010": {
+      "name": "Contaminated Stage Box (Nightmare) 10",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925011": {
+      "name": "Contaminated Stage Box (Nightmare) 11",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925012": {
+      "name": "Contaminated Stage Box (Nightmare) 12",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925013": {
+      "name": "Contaminated Stage Box (Nightmare) 13",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925014": {
+      "name": "Contaminated Stage Box (Nightmare) 14",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925015": {
+      "name": "Contaminated Stage Box (Nightmare) 15",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925016": {
+      "name": "Contaminated Stage Box (Nightmare) 16",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925017": {
+      "name": "Contaminated Stage Box (Nightmare) 17",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925018": {
+      "name": "Contaminated Stage Box (Nightmare) 18",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925019": {
+      "name": "Contaminated Stage Box (Nightmare) 19",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925020": {
+      "name": "Contaminated Stage Box (Nightmare) 20",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925101": {
+      "name": "Contaminated Stage Box (Hell) 1",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925102": {
+      "name": "Contaminated Stage Box (Hell) 2",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925103": {
+      "name": "Contaminated Stage Box (Hell) 3",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925104": {
+      "name": "Contaminated Stage Box (Hell) 4",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925105": {
+      "name": "Contaminated Stage Box (Hell) 5",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925106": {
+      "name": "Contaminated Stage Box (Hell) 6",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925107": {
+      "name": "Contaminated Stage Box (Hell) 7",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925108": {
+      "name": "Contaminated Stage Box (Hell) 8",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925109": {
+      "name": "Contaminated Stage Box (Hell) 9",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925110": {
+      "name": "Contaminated Stage Box (Hell) 10",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925111": {
+      "name": "Contaminated Stage Box (Hell) 11",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925112": {
+      "name": "Contaminated Stage Box (Hell) 12",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925113": {
+      "name": "Contaminated Stage Box (Hell) 13",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925114": {
+      "name": "Contaminated Stage Box (Hell) 14",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925115": {
+      "name": "Contaminated Stage Box (Hell) 15",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925116": {
+      "name": "Contaminated Stage Box (Hell) 16",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925117": {
+      "name": "Contaminated Stage Box (Hell) 17",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925118": {
+      "name": "Contaminated Stage Box (Hell) 18",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925119": {
+      "name": "Contaminated Stage Box (Hell) 19",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925120": {
+      "name": "Contaminated Stage Box (Hell) 20",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925201": {
+      "name": "Contaminated Stage Box (Torment) 1",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925202": {
+      "name": "Contaminated Stage Box (Torment) 2",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925203": {
+      "name": "Contaminated Stage Box (Torment) 3",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925204": {
+      "name": "Contaminated Stage Box (Torment) 4",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925205": {
+      "name": "Contaminated Stage Box (Torment) 5",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925206": {
+      "name": "Contaminated Stage Box (Torment) 6",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925207": {
+      "name": "Contaminated Stage Box (Torment) 7",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925208": {
+      "name": "Contaminated Stage Box (Torment) 8",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925209": {
+      "name": "Contaminated Stage Box (Torment) 9",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925210": {
+      "name": "Contaminated Stage Box (Torment) 10",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925211": {
+      "name": "Contaminated Stage Box (Torment) 11",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925212": {
+      "name": "Contaminated Stage Box (Torment) 12",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925213": {
+      "name": "Contaminated Stage Box (Torment) 13",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925214": {
+      "name": "Contaminated Stage Box (Torment) 14",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925215": {
+      "name": "Contaminated Stage Box (Torment) 15",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925216": {
+      "name": "Contaminated Stage Box (Torment) 16",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925217": {
+      "name": "Contaminated Stage Box (Torment) 17",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925218": {
+      "name": "Contaminated Stage Box (Torment) 18",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925219": {
+      "name": "Contaminated Stage Box (Torment) 19",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "925220": {
+      "name": "Contaminated Stage Box (Torment) 20",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 360
+    },
+    "930101": {
+      "name": "Act Boss Box 1",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930201": {
+      "name": "Act Boss Box Lv20",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930301": {
+      "name": "Act Boss Box Lv30",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930401": {
+      "name": "Act Boss Box Lv40",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930451": {
+      "name": "Act Boss Box Lv45",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930501": {
+      "name": "Act Boss Box Lv50",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930601": {
+      "name": "Act Boss Box Lv60",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930651": {
+      "name": "Act Boss Box Lv65",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930701": {
+      "name": "Act Boss Box Lv70",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930851": {
+      "name": "Act Boss Box Lv85",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "930901": {
+      "name": "Act Boss Box Lv90",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935001": {
+      "name": "Contaminated Act Boss Box (Nightmare) 1",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935002": {
+      "name": "Contaminated Act Boss Box (Nightmare) 2",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935003": {
+      "name": "Contaminated Act Boss Box (Nightmare) 3",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935101": {
+      "name": "Contaminated Act Boss Box (Hell) 1",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935102": {
+      "name": "Contaminated Act Boss Box (Hell) 2",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935103": {
+      "name": "Contaminated Act Boss Box (Hell) 3",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935201": {
+      "name": "Contaminated Act Boss Box (Torment) 1",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935202": {
+      "name": "Contaminated Act Boss Box (Torment) 2",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "935203": {
+      "name": "Contaminated Act Boss Box (Torment) 3",
+      "grade": "LEGENDARY",
+      "tier": "actBoss",
+      "cooldownSeconds": 0
+    },
+    "940001": {
+      "name": "Halloween Normal Box (Nightmare)",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 0
+    },
+    "940101": {
+      "name": "Halloween Normal Box (Hell)",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 0
+    },
+    "940201": {
+      "name": "Halloween Normal Box (Torment)",
+      "grade": "COMMON",
+      "tier": "monster",
+      "cooldownSeconds": 0
+    },
+    "941001": {
+      "name": "Halloween Stage Box (Nightmare)",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 0
+    },
+    "941101": {
+      "name": "Halloween Stage Box (Hell)",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 0
+    },
+    "941201": {
+      "name": "Halloween Stage Box (Torment)",
+      "grade": "RARE",
+      "tier": "stageBoss",
+      "cooldownSeconds": 0
+    }
+  },
+  "stages": [
+    {
+      "key": 1101,
+      "act": 1,
+      "stageNo": 1,
+      "difficulty": "NORMAL",
+      "level": 1,
+      "name": "Pasture",
+      "boxKey": 920011,
+      "monsterBoxKey": 910011,
+      "bossRate": 1000,
+      "monsterRate": 160,
+      "monsters": 10
+    },
+    {
+      "key": 1102,
+      "act": 1,
+      "stageNo": 2,
+      "difficulty": "NORMAL",
+      "level": 2,
+      "name": "Shadow Meadow",
+      "boxKey": 920011,
+      "monsterBoxKey": 910011,
+      "bossRate": 1000,
+      "monsterRate": 160,
+      "monsters": 22
+    },
+    {
+      "key": 1103,
+      "act": 1,
+      "stageNo": 3,
+      "difficulty": "NORMAL",
+      "level": 3,
+      "name": "Wasteland",
+      "boxKey": 920011,
+      "monsterBoxKey": 910011,
+      "bossRate": 1000,
+      "monsterRate": 160,
+      "monsters": 33
+    },
+    {
+      "key": 1104,
+      "act": 1,
+      "stageNo": 4,
+      "difficulty": "NORMAL",
+      "level": 5,
+      "name": "Eerie Canyon",
+      "boxKey": 920051,
+      "monsterBoxKey": 910051,
+      "bossRate": 1000,
+      "monsterRate": 120,
+      "monsters": 36
+    },
+    {
+      "key": 1105,
+      "act": 1,
+      "stageNo": 5,
+      "difficulty": "NORMAL",
+      "level": 6,
+      "name": "Burning Village Entrance",
+      "boxKey": 920051,
+      "monsterBoxKey": 910051,
+      "bossRate": 800,
+      "monsterRate": 120,
+      "monsters": 48
+    },
+    {
+      "key": 1106,
+      "act": 1,
+      "stageNo": 6,
+      "difficulty": "NORMAL",
+      "level": 7,
+      "name": "Rumstreet Square",
+      "boxKey": 920051,
+      "monsterBoxKey": 910051,
+      "bossRate": 800,
+      "monsterRate": 80,
+      "monsters": 60
+    },
+    {
+      "key": 1107,
+      "act": 1,
+      "stageNo": 7,
+      "difficulty": "NORMAL",
+      "level": 8,
+      "name": "City Outskirts",
+      "boxKey": 920051,
+      "monsterBoxKey": 910051,
+      "bossRate": 600,
+      "monsterRate": 80,
+      "monsters": 72
+    },
+    {
+      "key": 1108,
+      "act": 1,
+      "stageNo": 8,
+      "difficulty": "NORMAL",
+      "level": 10,
+      "name": "Cemetery",
+      "boxKey": 920101,
+      "monsterBoxKey": 910101,
+      "bossRate": 400,
+      "monsterRate": 30,
+      "monsters": 78
+    },
+    {
+      "key": 1109,
+      "act": 1,
+      "stageNo": 9,
+      "difficulty": "NORMAL",
+      "level": 11,
+      "name": "Cursed Land",
+      "boxKey": 920101,
+      "monsterBoxKey": 910101,
+      "bossRate": 400,
+      "monsterRate": 30,
+      "monsters": 91
+    },
+    {
+      "key": 1201,
+      "act": 2,
+      "stageNo": 1,
+      "difficulty": "NORMAL",
+      "level": 13,
+      "name": "Oasis Road",
+      "boxKey": 920101,
+      "monsterBoxKey": 910101,
+      "bossRate": 400,
+      "monsterRate": 30,
+      "monsters": 98
+    },
+    {
+      "key": 1202,
+      "act": 2,
+      "stageNo": 2,
+      "difficulty": "NORMAL",
+      "level": 14,
+      "name": "Sandstorm Valley",
+      "boxKey": 920101,
+      "monsterBoxKey": 910101,
+      "bossRate": 400,
+      "monsterRate": 30,
+      "monsters": 98
+    },
+    {
+      "key": 1203,
+      "act": 2,
+      "stageNo": 3,
+      "difficulty": "NORMAL",
+      "level": 15,
+      "name": "Desert Underground Cave",
+      "boxKey": 920151,
+      "monsterBoxKey": 910151,
+      "bossRate": 300,
+      "monsterRate": 25,
+      "monsters": 98
+    },
+    {
+      "key": 1204,
+      "act": 2,
+      "stageNo": 4,
+      "difficulty": "NORMAL",
+      "level": 16,
+      "name": "Bug Nest",
+      "boxKey": 920151,
+      "monsterBoxKey": 910151,
+      "bossRate": 300,
+      "monsterRate": 25,
+      "monsters": 105
+    },
+    {
+      "key": 1205,
+      "act": 2,
+      "stageNo": 5,
+      "difficulty": "NORMAL",
+      "level": 17,
+      "name": "Scorching Dunes",
+      "boxKey": 920151,
+      "monsterBoxKey": 910151,
+      "bossRate": 300,
+      "monsterRate": 25,
+      "monsters": 105
+    },
+    {
+      "key": 1206,
+      "act": 2,
+      "stageNo": 6,
+      "difficulty": "NORMAL",
+      "level": 18,
+      "name": "Sunset Ruins",
+      "boxKey": 920151,
+      "monsterBoxKey": 910151,
+      "bossRate": 300,
+      "monsterRate": 25,
+      "monsters": 120
+    },
+    {
+      "key": 1207,
+      "act": 2,
+      "stageNo": 7,
+      "difficulty": "NORMAL",
+      "level": 19,
+      "name": "Midnight Sands",
+      "boxKey": 920151,
+      "monsterBoxKey": 910151,
+      "bossRate": 300,
+      "monsterRate": 25,
+      "monsters": 120
+    },
+    {
+      "key": 1208,
+      "act": 2,
+      "stageNo": 8,
+      "difficulty": "NORMAL",
+      "level": 20,
+      "name": "Sacred Tomb",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 128
+    },
+    {
+      "key": 1209,
+      "act": 2,
+      "stageNo": 9,
+      "difficulty": "NORMAL",
+      "level": 21,
+      "name": "Pharaoh's Crypt",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 128
+    },
+    {
+      "key": 1301,
+      "act": 3,
+      "stageNo": 1,
+      "difficulty": "NORMAL",
+      "level": 23,
+      "name": "Snowbound Outpost",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 128
+    },
+    {
+      "key": 1302,
+      "act": 3,
+      "stageNo": 2,
+      "difficulty": "NORMAL",
+      "level": 24,
+      "name": "Frozen Battlefield",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 128
+    },
+    {
+      "key": 1303,
+      "act": 3,
+      "stageNo": 3,
+      "difficulty": "NORMAL",
+      "level": 25,
+      "name": "Glacial Cave Entrance",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 153
+    },
+    {
+      "key": 1304,
+      "act": 3,
+      "stageNo": 4,
+      "difficulty": "NORMAL",
+      "level": 26,
+      "name": "Frozen Glacier Cavern",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 153
+    },
+    {
+      "key": 1305,
+      "act": 3,
+      "stageNo": 5,
+      "difficulty": "NORMAL",
+      "level": 27,
+      "name": "Hell Gate",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 153
+    },
+    {
+      "key": 1306,
+      "act": 3,
+      "stageNo": 6,
+      "difficulty": "NORMAL",
+      "level": 28,
+      "name": "Burning Ravine",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 153
+    },
+    {
+      "key": 1307,
+      "act": 3,
+      "stageNo": 7,
+      "difficulty": "NORMAL",
+      "level": 29,
+      "name": "Plains of Torment",
+      "boxKey": 920201,
+      "monsterBoxKey": 910201,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 170
+    },
+    {
+      "key": 1308,
+      "act": 3,
+      "stageNo": 8,
+      "difficulty": "NORMAL",
+      "level": 30,
+      "name": "Citadel of Ruin",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 180
+    },
+    {
+      "key": 1309,
+      "act": 3,
+      "stageNo": 9,
+      "difficulty": "NORMAL",
+      "level": 31,
+      "name": "Core of the Abyss",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 200,
+      "monsterRate": 20,
+      "monsters": 198
+    },
+    {
+      "key": 2101,
+      "act": 1,
+      "stageNo": 1,
+      "difficulty": "NIGHTMARE",
+      "level": 33,
+      "name": "Pasture",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 200
+    },
+    {
+      "key": 2102,
+      "act": 1,
+      "stageNo": 2,
+      "difficulty": "NIGHTMARE",
+      "level": 34,
+      "name": "Shadow Meadow",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 200
+    },
+    {
+      "key": 2103,
+      "act": 1,
+      "stageNo": 3,
+      "difficulty": "NIGHTMARE",
+      "level": 35,
+      "name": "Wasteland",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 220
+    },
+    {
+      "key": 2104,
+      "act": 1,
+      "stageNo": 4,
+      "difficulty": "NIGHTMARE",
+      "level": 35,
+      "name": "Eerie Canyon",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 231
+    },
+    {
+      "key": 2105,
+      "act": 1,
+      "stageNo": 5,
+      "difficulty": "NIGHTMARE",
+      "level": 36,
+      "name": "Burning Village Entrance",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 252
+    },
+    {
+      "key": 2106,
+      "act": 1,
+      "stageNo": 6,
+      "difficulty": "NIGHTMARE",
+      "level": 37,
+      "name": "Rumstreet Square",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 252
+    },
+    {
+      "key": 2107,
+      "act": 1,
+      "stageNo": 7,
+      "difficulty": "NIGHTMARE",
+      "level": 38,
+      "name": "City Outskirts",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 273
+    },
+    {
+      "key": 2108,
+      "act": 1,
+      "stageNo": 8,
+      "difficulty": "NIGHTMARE",
+      "level": 39,
+      "name": "Cemetery",
+      "boxKey": 920301,
+      "monsterBoxKey": 910301,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 273
+    },
+    {
+      "key": 2109,
+      "act": 1,
+      "stageNo": 9,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Cursed Land",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 286
+    },
+    {
+      "key": 2201,
+      "act": 2,
+      "stageNo": 1,
+      "difficulty": "NIGHTMARE",
+      "level": 41,
+      "name": "Oasis Road",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 286
+    },
+    {
+      "key": 2202,
+      "act": 2,
+      "stageNo": 2,
+      "difficulty": "NIGHTMARE",
+      "level": 41,
+      "name": "Sandstorm Valley",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 286
+    },
+    {
+      "key": 2203,
+      "act": 2,
+      "stageNo": 3,
+      "difficulty": "NIGHTMARE",
+      "level": 42,
+      "name": "Desert Underground Cave",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 286
+    },
+    {
+      "key": 2204,
+      "act": 2,
+      "stageNo": 4,
+      "difficulty": "NIGHTMARE",
+      "level": 42,
+      "name": "Bug Nest",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 286
+    },
+    {
+      "key": 2205,
+      "act": 2,
+      "stageNo": 5,
+      "difficulty": "NIGHTMARE",
+      "level": 43,
+      "name": "Scorching Dunes",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 286
+    },
+    {
+      "key": 2206,
+      "act": 2,
+      "stageNo": 6,
+      "difficulty": "NIGHTMARE",
+      "level": 43,
+      "name": "Sunset Ruins",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 286
+    },
+    {
+      "key": 2207,
+      "act": 2,
+      "stageNo": 7,
+      "difficulty": "NIGHTMARE",
+      "level": 44,
+      "name": "Midnight Sands",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 308
+    },
+    {
+      "key": 2208,
+      "act": 2,
+      "stageNo": 8,
+      "difficulty": "NIGHTMARE",
+      "level": 44,
+      "name": "Sacred Tomb",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 308
+    },
+    {
+      "key": 2209,
+      "act": 2,
+      "stageNo": 9,
+      "difficulty": "NIGHTMARE",
+      "level": 45,
+      "name": "Pharaoh's Crypt",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 322
+    },
+    {
+      "key": 2301,
+      "act": 3,
+      "stageNo": 1,
+      "difficulty": "NIGHTMARE",
+      "level": 46,
+      "name": "Snowbound Outpost",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 322
+    },
+    {
+      "key": 2302,
+      "act": 3,
+      "stageNo": 2,
+      "difficulty": "NIGHTMARE",
+      "level": 47,
+      "name": "Frozen Battlefield",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 322
+    },
+    {
+      "key": 2303,
+      "act": 3,
+      "stageNo": 3,
+      "difficulty": "NIGHTMARE",
+      "level": 48,
+      "name": "Glacial Cave Entrance",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 322
+    },
+    {
+      "key": 2304,
+      "act": 3,
+      "stageNo": 4,
+      "difficulty": "NIGHTMARE",
+      "level": 49,
+      "name": "Frozen Glacier Cavern",
+      "boxKey": 920401,
+      "monsterBoxKey": 910401,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 322
+    },
+    {
+      "key": 2305,
+      "act": 3,
+      "stageNo": 5,
+      "difficulty": "NIGHTMARE",
+      "level": 50,
+      "name": "Hell Gate",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 322
+    },
+    {
+      "key": 2306,
+      "act": 3,
+      "stageNo": 6,
+      "difficulty": "NIGHTMARE",
+      "level": 50,
+      "name": "Burning Ravine",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 322
+    },
+    {
+      "key": 2307,
+      "act": 3,
+      "stageNo": 7,
+      "difficulty": "NIGHTMARE",
+      "level": 51,
+      "name": "Plains of Torment",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 345
+    },
+    {
+      "key": 2308,
+      "act": 3,
+      "stageNo": 8,
+      "difficulty": "NIGHTMARE",
+      "level": 51,
+      "name": "Citadel of Ruin",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 345
+    },
+    {
+      "key": 2309,
+      "act": 3,
+      "stageNo": 9,
+      "difficulty": "NIGHTMARE",
+      "level": 52,
+      "name": "Core of the Abyss",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 150,
+      "monsterRate": 15,
+      "monsters": 345
+    },
+    {
+      "key": 3101,
+      "act": 1,
+      "stageNo": 1,
+      "difficulty": "HELL",
+      "level": 53,
+      "name": "Pasture",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 360
+    },
+    {
+      "key": 3102,
+      "act": 1,
+      "stageNo": 2,
+      "difficulty": "HELL",
+      "level": 54,
+      "name": "Shadow Meadow",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 360
+    },
+    {
+      "key": 3103,
+      "act": 1,
+      "stageNo": 3,
+      "difficulty": "HELL",
+      "level": 55,
+      "name": "Wasteland",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 375
+    },
+    {
+      "key": 3104,
+      "act": 1,
+      "stageNo": 4,
+      "difficulty": "HELL",
+      "level": 56,
+      "name": "Eerie Canyon",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 375
+    },
+    {
+      "key": 3105,
+      "act": 1,
+      "stageNo": 5,
+      "difficulty": "HELL",
+      "level": 57,
+      "name": "Burning Village Entrance",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 375
+    },
+    {
+      "key": 3106,
+      "act": 1,
+      "stageNo": 6,
+      "difficulty": "HELL",
+      "level": 58,
+      "name": "Rumstreet Square",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 375
+    },
+    {
+      "key": 3107,
+      "act": 1,
+      "stageNo": 7,
+      "difficulty": "HELL",
+      "level": 59,
+      "name": "City Outskirts",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 400
+    },
+    {
+      "key": 3108,
+      "act": 1,
+      "stageNo": 8,
+      "difficulty": "HELL",
+      "level": 59,
+      "name": "Cemetery",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 400
+    },
+    {
+      "key": 3109,
+      "act": 1,
+      "stageNo": 9,
+      "difficulty": "HELL",
+      "level": 60,
+      "name": "Cursed Land",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 400
+    },
+    {
+      "key": 3201,
+      "act": 2,
+      "stageNo": 1,
+      "difficulty": "HELL",
+      "level": 61,
+      "name": "Oasis Road",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 416
+    },
+    {
+      "key": 3202,
+      "act": 2,
+      "stageNo": 2,
+      "difficulty": "HELL",
+      "level": 62,
+      "name": "Sandstorm Valley",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 416
+    },
+    {
+      "key": 3203,
+      "act": 2,
+      "stageNo": 3,
+      "difficulty": "HELL",
+      "level": 63,
+      "name": "Desert Underground Cave",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 416
+    },
+    {
+      "key": 3204,
+      "act": 2,
+      "stageNo": 4,
+      "difficulty": "HELL",
+      "level": 64,
+      "name": "Bug Nest",
+      "boxKey": 920501,
+      "monsterBoxKey": 910501,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 416
+    },
+    {
+      "key": 3205,
+      "act": 2,
+      "stageNo": 5,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Scorching Dunes",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 416
+    },
+    {
+      "key": 3206,
+      "act": 2,
+      "stageNo": 6,
+      "difficulty": "HELL",
+      "level": 66,
+      "name": "Sunset Ruins",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 416
+    },
+    {
+      "key": 3207,
+      "act": 2,
+      "stageNo": 7,
+      "difficulty": "HELL",
+      "level": 67,
+      "name": "Midnight Sands",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 442
+    },
+    {
+      "key": 3208,
+      "act": 2,
+      "stageNo": 8,
+      "difficulty": "HELL",
+      "level": 68,
+      "name": "Sacred Tomb",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 442
+    },
+    {
+      "key": 3209,
+      "act": 2,
+      "stageNo": 9,
+      "difficulty": "HELL",
+      "level": 69,
+      "name": "Pharaoh's Crypt",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 442
+    },
+    {
+      "key": 3301,
+      "act": 3,
+      "stageNo": 1,
+      "difficulty": "HELL",
+      "level": 70,
+      "name": "Snowbound Outpost",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 459
+    },
+    {
+      "key": 3302,
+      "act": 3,
+      "stageNo": 2,
+      "difficulty": "HELL",
+      "level": 71,
+      "name": "Frozen Battlefield",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 459
+    },
+    {
+      "key": 3303,
+      "act": 3,
+      "stageNo": 3,
+      "difficulty": "HELL",
+      "level": 72,
+      "name": "Glacial Cave Entrance",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 459
+    },
+    {
+      "key": 3304,
+      "act": 3,
+      "stageNo": 4,
+      "difficulty": "HELL",
+      "level": 73,
+      "name": "Frozen Glacier Cavern",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 459
+    },
+    {
+      "key": 3305,
+      "act": 3,
+      "stageNo": 5,
+      "difficulty": "HELL",
+      "level": 74,
+      "name": "Hell Gate",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 459
+    },
+    {
+      "key": 3306,
+      "act": 3,
+      "stageNo": 6,
+      "difficulty": "HELL",
+      "level": 75,
+      "name": "Burning Ravine",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 459
+    },
+    {
+      "key": 3307,
+      "act": 3,
+      "stageNo": 7,
+      "difficulty": "HELL",
+      "level": 76,
+      "name": "Plains of Torment",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 486
+    },
+    {
+      "key": 3308,
+      "act": 3,
+      "stageNo": 8,
+      "difficulty": "HELL",
+      "level": 76,
+      "name": "Citadel of Ruin",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 486
+    },
+    {
+      "key": 3309,
+      "act": 3,
+      "stageNo": 9,
+      "difficulty": "HELL",
+      "level": 77,
+      "name": "Core of the Abyss",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 100,
+      "monsterRate": 10,
+      "monsters": 486
+    },
+    {
+      "key": 4101,
+      "act": 1,
+      "stageNo": 1,
+      "difficulty": "TORMENT",
+      "level": 78,
+      "name": "Pasture",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 522
+    },
+    {
+      "key": 4102,
+      "act": 1,
+      "stageNo": 2,
+      "difficulty": "TORMENT",
+      "level": 79,
+      "name": "Shadow Meadow",
+      "boxKey": 920651,
+      "monsterBoxKey": 910651,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 522
+    },
+    {
+      "key": 4103,
+      "act": 1,
+      "stageNo": 3,
+      "difficulty": "TORMENT",
+      "level": 80,
+      "name": "Wasteland",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 522
+    },
+    {
+      "key": 4104,
+      "act": 1,
+      "stageNo": 4,
+      "difficulty": "TORMENT",
+      "level": 81,
+      "name": "Eerie Canyon",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 522
+    },
+    {
+      "key": 4105,
+      "act": 1,
+      "stageNo": 5,
+      "difficulty": "TORMENT",
+      "level": 82,
+      "name": "Burning Village Entrance",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 522
+    },
+    {
+      "key": 4106,
+      "act": 1,
+      "stageNo": 6,
+      "difficulty": "TORMENT",
+      "level": 83,
+      "name": "Rumstreet Square",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 522
+    },
+    {
+      "key": 4107,
+      "act": 1,
+      "stageNo": 7,
+      "difficulty": "TORMENT",
+      "level": 84,
+      "name": "City Outskirts",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 551
+    },
+    {
+      "key": 4108,
+      "act": 1,
+      "stageNo": 8,
+      "difficulty": "TORMENT",
+      "level": 84,
+      "name": "Cemetery",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 551
+    },
+    {
+      "key": 4109,
+      "act": 1,
+      "stageNo": 9,
+      "difficulty": "TORMENT",
+      "level": 85,
+      "name": "Cursed Land",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 551
+    },
+    {
+      "key": 4201,
+      "act": 2,
+      "stageNo": 1,
+      "difficulty": "TORMENT",
+      "level": 86,
+      "name": "Oasis Road",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 570
+    },
+    {
+      "key": 4202,
+      "act": 2,
+      "stageNo": 2,
+      "difficulty": "TORMENT",
+      "level": 86,
+      "name": "Sandstorm Valley",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 570
+    },
+    {
+      "key": 4203,
+      "act": 2,
+      "stageNo": 3,
+      "difficulty": "TORMENT",
+      "level": 87,
+      "name": "Desert Underground Cave",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 570
+    },
+    {
+      "key": 4204,
+      "act": 2,
+      "stageNo": 4,
+      "difficulty": "TORMENT",
+      "level": 87,
+      "name": "Bug Nest",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 570
+    },
+    {
+      "key": 4205,
+      "act": 2,
+      "stageNo": 5,
+      "difficulty": "TORMENT",
+      "level": 88,
+      "name": "Scorching Dunes",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 570
+    },
+    {
+      "key": 4206,
+      "act": 2,
+      "stageNo": 6,
+      "difficulty": "TORMENT",
+      "level": 88,
+      "name": "Sunset Ruins",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 570
+    },
+    {
+      "key": 4207,
+      "act": 2,
+      "stageNo": 7,
+      "difficulty": "TORMENT",
+      "level": 89,
+      "name": "Midnight Sands",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 600
+    },
+    {
+      "key": 4208,
+      "act": 2,
+      "stageNo": 8,
+      "difficulty": "TORMENT",
+      "level": 89,
+      "name": "Sacred Tomb",
+      "boxKey": 920801,
+      "monsterBoxKey": 910801,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 600
+    },
+    {
+      "key": 4209,
+      "act": 2,
+      "stageNo": 9,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Pharaoh's Crypt",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 600
+    },
+    {
+      "key": 4301,
+      "act": 3,
+      "stageNo": 1,
+      "difficulty": "TORMENT",
+      "level": 91,
+      "name": "Snowbound Outpost",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 620
+    },
+    {
+      "key": 4302,
+      "act": 3,
+      "stageNo": 2,
+      "difficulty": "TORMENT",
+      "level": 91,
+      "name": "Frozen Battlefield",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 620
+    },
+    {
+      "key": 4303,
+      "act": 3,
+      "stageNo": 3,
+      "difficulty": "TORMENT",
+      "level": 92,
+      "name": "Glacial Cave Entrance",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 620
+    },
+    {
+      "key": 4304,
+      "act": 3,
+      "stageNo": 4,
+      "difficulty": "TORMENT",
+      "level": 92,
+      "name": "Frozen Glacier Cavern",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 620
+    },
+    {
+      "key": 4305,
+      "act": 3,
+      "stageNo": 5,
+      "difficulty": "TORMENT",
+      "level": 93,
+      "name": "Hell Gate",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 620
+    },
+    {
+      "key": 4306,
+      "act": 3,
+      "stageNo": 6,
+      "difficulty": "TORMENT",
+      "level": 93,
+      "name": "Burning Ravine",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 620
+    },
+    {
+      "key": 4307,
+      "act": 3,
+      "stageNo": 7,
+      "difficulty": "TORMENT",
+      "level": 94,
+      "name": "Plains of Torment",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 651
+    },
+    {
+      "key": 4308,
+      "act": 3,
+      "stageNo": 8,
+      "difficulty": "TORMENT",
+      "level": 94,
+      "name": "Citadel of Ruin",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 651
+    },
+    {
+      "key": 4309,
+      "act": 3,
+      "stageNo": 9,
+      "difficulty": "TORMENT",
+      "level": 95,
+      "name": "Core of the Abyss",
+      "boxKey": 920901,
+      "monsterBoxKey": 910901,
+      "bossRate": 80,
+      "monsterRate": 8,
+      "monsters": 651
+    },
+    {
+      "key": 201201,
+      "act": 21,
+      "stageNo": 1,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925001,
+      "monsterBoxKey": 915001,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 255
+    },
+    {
+      "key": 201202,
+      "act": 21,
+      "stageNo": 2,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925002,
+      "monsterBoxKey": 915001,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 255
+    },
+    {
+      "key": 201203,
+      "act": 21,
+      "stageNo": 3,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925003,
+      "monsterBoxKey": 915001,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 255
+    },
+    {
+      "key": 201204,
+      "act": 21,
+      "stageNo": 4,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925004,
+      "monsterBoxKey": 915001,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 255
+    },
+    {
+      "key": 201205,
+      "act": 21,
+      "stageNo": 5,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925005,
+      "monsterBoxKey": 915001,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 255
+    },
+    {
+      "key": 201206,
+      "act": 21,
+      "stageNo": 6,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925006,
+      "monsterBoxKey": 915006,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 288
+    },
+    {
+      "key": 201207,
+      "act": 21,
+      "stageNo": 7,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925007,
+      "monsterBoxKey": 915006,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 288
+    },
+    {
+      "key": 201208,
+      "act": 21,
+      "stageNo": 8,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925008,
+      "monsterBoxKey": 915006,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 288
+    },
+    {
+      "key": 201209,
+      "act": 21,
+      "stageNo": 9,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925009,
+      "monsterBoxKey": 915006,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 288
+    },
+    {
+      "key": 201210,
+      "act": 21,
+      "stageNo": 10,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925010,
+      "monsterBoxKey": 915006,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 288
+    },
+    {
+      "key": 201211,
+      "act": 21,
+      "stageNo": 11,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925011,
+      "monsterBoxKey": 915011,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 323
+    },
+    {
+      "key": 201212,
+      "act": 21,
+      "stageNo": 12,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925012,
+      "monsterBoxKey": 915011,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 323
+    },
+    {
+      "key": 201213,
+      "act": 21,
+      "stageNo": 13,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925013,
+      "monsterBoxKey": 915011,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 323
+    },
+    {
+      "key": 201214,
+      "act": 21,
+      "stageNo": 14,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925014,
+      "monsterBoxKey": 915011,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 323
+    },
+    {
+      "key": 201215,
+      "act": 21,
+      "stageNo": 15,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925015,
+      "monsterBoxKey": 915011,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 323
+    },
+    {
+      "key": 201216,
+      "act": 21,
+      "stageNo": 16,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925016,
+      "monsterBoxKey": 915016,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 360
+    },
+    {
+      "key": 201217,
+      "act": 21,
+      "stageNo": 17,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925017,
+      "monsterBoxKey": 915016,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 360
+    },
+    {
+      "key": 201218,
+      "act": 21,
+      "stageNo": 18,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925018,
+      "monsterBoxKey": 915016,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 360
+    },
+    {
+      "key": 201219,
+      "act": 21,
+      "stageNo": 19,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925019,
+      "monsterBoxKey": 915016,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 360
+    },
+    {
+      "key": 201220,
+      "act": 21,
+      "stageNo": 20,
+      "difficulty": "NIGHTMARE",
+      "level": 40,
+      "name": "Nightmare Plaguelands",
+      "boxKey": 925020,
+      "monsterBoxKey": 915016,
+      "bossRate": 40,
+      "monsterRate": 1.4,
+      "monsters": 360
+    },
+    {
+      "key": 201301,
+      "act": 22,
+      "stageNo": 1,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925101,
+      "monsterBoxKey": 915101,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 342
+    },
+    {
+      "key": 201302,
+      "act": 22,
+      "stageNo": 2,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925102,
+      "monsterBoxKey": 915101,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 342
+    },
+    {
+      "key": 201303,
+      "act": 22,
+      "stageNo": 3,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925103,
+      "monsterBoxKey": 915101,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 342
+    },
+    {
+      "key": 201304,
+      "act": 22,
+      "stageNo": 4,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925104,
+      "monsterBoxKey": 915101,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 342
+    },
+    {
+      "key": 201305,
+      "act": 22,
+      "stageNo": 5,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925105,
+      "monsterBoxKey": 915101,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 342
+    },
+    {
+      "key": 201306,
+      "act": 22,
+      "stageNo": 6,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925106,
+      "monsterBoxKey": 915106,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 380
+    },
+    {
+      "key": 201307,
+      "act": 22,
+      "stageNo": 7,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925107,
+      "monsterBoxKey": 915106,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 380
+    },
+    {
+      "key": 201308,
+      "act": 22,
+      "stageNo": 8,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925108,
+      "monsterBoxKey": 915106,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 380
+    },
+    {
+      "key": 201309,
+      "act": 22,
+      "stageNo": 9,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925109,
+      "monsterBoxKey": 915106,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 380
+    },
+    {
+      "key": 201310,
+      "act": 22,
+      "stageNo": 10,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925110,
+      "monsterBoxKey": 915106,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 380
+    },
+    {
+      "key": 201311,
+      "act": 22,
+      "stageNo": 11,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925111,
+      "monsterBoxKey": 915111,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 420
+    },
+    {
+      "key": 201312,
+      "act": 22,
+      "stageNo": 12,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925112,
+      "monsterBoxKey": 915111,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 420
+    },
+    {
+      "key": 201313,
+      "act": 22,
+      "stageNo": 13,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925113,
+      "monsterBoxKey": 915111,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 420
+    },
+    {
+      "key": 201314,
+      "act": 22,
+      "stageNo": 14,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925114,
+      "monsterBoxKey": 915111,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 420
+    },
+    {
+      "key": 201315,
+      "act": 22,
+      "stageNo": 15,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925115,
+      "monsterBoxKey": 915111,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 420
+    },
+    {
+      "key": 201316,
+      "act": 22,
+      "stageNo": 16,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925116,
+      "monsterBoxKey": 915116,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 462
+    },
+    {
+      "key": 201317,
+      "act": 22,
+      "stageNo": 17,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925117,
+      "monsterBoxKey": 915116,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 462
+    },
+    {
+      "key": 201318,
+      "act": 22,
+      "stageNo": 18,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925118,
+      "monsterBoxKey": 915116,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 462
+    },
+    {
+      "key": 201319,
+      "act": 22,
+      "stageNo": 19,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925119,
+      "monsterBoxKey": 915116,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 462
+    },
+    {
+      "key": 201320,
+      "act": 22,
+      "stageNo": 20,
+      "difficulty": "HELL",
+      "level": 65,
+      "name": "Hell Plaguelands",
+      "boxKey": 925120,
+      "monsterBoxKey": 915116,
+      "bossRate": 30,
+      "monsterRate": 1,
+      "monsters": 462
+    },
+    {
+      "key": 201401,
+      "act": 23,
+      "stageNo": 1,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925201,
+      "monsterBoxKey": 915201,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 462
+    },
+    {
+      "key": 201402,
+      "act": 23,
+      "stageNo": 2,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925202,
+      "monsterBoxKey": 915201,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 462
+    },
+    {
+      "key": 201403,
+      "act": 23,
+      "stageNo": 3,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925203,
+      "monsterBoxKey": 915201,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 462
+    },
+    {
+      "key": 201404,
+      "act": 23,
+      "stageNo": 4,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925204,
+      "monsterBoxKey": 915201,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 462
+    },
+    {
+      "key": 201405,
+      "act": 23,
+      "stageNo": 5,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925205,
+      "monsterBoxKey": 915201,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 462
+    },
+    {
+      "key": 201406,
+      "act": 23,
+      "stageNo": 6,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925206,
+      "monsterBoxKey": 915206,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 506
+    },
+    {
+      "key": 201407,
+      "act": 23,
+      "stageNo": 7,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925207,
+      "monsterBoxKey": 915206,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 506
+    },
+    {
+      "key": 201408,
+      "act": 23,
+      "stageNo": 8,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925208,
+      "monsterBoxKey": 915206,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 506
+    },
+    {
+      "key": 201409,
+      "act": 23,
+      "stageNo": 9,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925209,
+      "monsterBoxKey": 915206,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 506
+    },
+    {
+      "key": 201410,
+      "act": 23,
+      "stageNo": 10,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925210,
+      "monsterBoxKey": 915206,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 506
+    },
+    {
+      "key": 201411,
+      "act": 23,
+      "stageNo": 11,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925211,
+      "monsterBoxKey": 915211,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 552
+    },
+    {
+      "key": 201412,
+      "act": 23,
+      "stageNo": 12,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925212,
+      "monsterBoxKey": 915211,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 552
+    },
+    {
+      "key": 201413,
+      "act": 23,
+      "stageNo": 13,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925213,
+      "monsterBoxKey": 915211,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 552
+    },
+    {
+      "key": 201414,
+      "act": 23,
+      "stageNo": 14,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925214,
+      "monsterBoxKey": 915211,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 552
+    },
+    {
+      "key": 201415,
+      "act": 23,
+      "stageNo": 15,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925215,
+      "monsterBoxKey": 915211,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 552
+    },
+    {
+      "key": 201416,
+      "act": 23,
+      "stageNo": 16,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925216,
+      "monsterBoxKey": 915216,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 600
+    },
+    {
+      "key": 201417,
+      "act": 23,
+      "stageNo": 17,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925217,
+      "monsterBoxKey": 915216,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 600
+    },
+    {
+      "key": 201418,
+      "act": 23,
+      "stageNo": 18,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925218,
+      "monsterBoxKey": 915216,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 600
+    },
+    {
+      "key": 201419,
+      "act": 23,
+      "stageNo": 19,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925219,
+      "monsterBoxKey": 915216,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 600
+    },
+    {
+      "key": 201420,
+      "act": 23,
+      "stageNo": 20,
+      "difficulty": "TORMENT",
+      "level": 90,
+      "name": "Torment Plaguelands",
+      "boxKey": 925220,
+      "monsterBoxKey": 915216,
+      "bossRate": 20,
+      "monsterRate": 0.6,
+      "monsters": 600
+    }
+  ]
+}

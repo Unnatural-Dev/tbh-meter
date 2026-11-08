@@ -35,6 +35,24 @@ TBH Meter is a lightweight, always-on-top overlay that tracks your **Task Bar He
 
 Every finished run is also saved with full detail — result (success / fail / abandoned), gold & XP gained, gold/XP per second, and a complete snapshot of your heroes (class, level, items, mods, skills, stats) — browsable from the built-in **Runs** window.
 
+The **Chests** tab plans farming from the median of your ten latest complete successful runs per
+stage, refreshing as new runs arrive. You can override any stage with a time you enter. It ranks
+those stages separately for each boss-box tier, showing boss, monster, and combined boxes per hour.
+It includes the run-boundary cooldown cycle, a 2.45-second transition between runs, automatically
+derived rune and unlocked-pet bonuses from the latest readable raw run snapshots, manual bonus
+overrides, a maxed-account comparison, and suggestions for faster cooldown boundaries. Pet ownership
+is captured in new runs; older runs cannot be backfilled. Missing or unreadable snapshots are marked
+unavailable, with manual totals available in Your bonuses. Separate rune and pet snapshot timestamps
+show when each source was recorded. Automatic refresh never changes saved manual overrides.
+Rare-drop estimates are ceilings, not guaranteed loot; tiers are not compared by item value.
+Times and bonuses stay in local settings. This replaces the old chest-readiness countdown and its
+notifications; existing saved drop history is retained. Chest **drop** notifications remain separate.
+The equipment/XP **Planner** tab is unchanged.
+
+The chest model uses a local factual snapshot of the [TBH Index Chest Planner](https://tbhindex.com/wiki/chest-tracker).
+Planner-only stage and box metadata are versioned separately from the reader's game-data snapshot;
+see `scripts/refresh-chest-planner.mjs` to refresh that data. The app does not contact the website.
+
 ## Install
 
 > **Windows 10+ only.** The reader uses Windows APIs to read game memory.

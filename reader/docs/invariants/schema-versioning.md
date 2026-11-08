@@ -32,7 +32,7 @@ marker the converter's migration uses to branch when reading the old records (`�
 (`str(ts_ms)`), `ts` in ms, **no `session_id` and no `run`** (the session is derived by the app). It kills
 the `run_num`-reset class of bug (id recycled on restart → the new run vanished).
 
-**ADDITIVE exception (established by the account snapshot — `runes`/`inventory`/`stash`):** a **NEW**
+**ADDITIVE exception (established by the account snapshot — `runes`/`inventory`/`stash`, also `pets`):** a **NEW**
 field the converter does **not yet consume** does NOT bump the version — it goes in **optional** in the TS
 contract (old raw lacks it; the consumer detects it by the PRESENCE of the key, not by the version) and
 the converter ignores it (it reads by name; an unknown key does not change the output). Bumping without a
