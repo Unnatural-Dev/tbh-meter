@@ -41,6 +41,7 @@ the "this smells bad" trigger.)
 | `cands[:N]` / fixed cap when sweeping instances (`pick_live_sm`) | the instance count grows per build → misses the carrier (1.00.11: 1162 > 600) | [[invariants/party-live-resolution]] |
 | `pick_live_sm` accepting an instance on a WEAKER check than `read_live_party` (only `heroKey`, no `level/exp`) | picks a 'ghost' StageManager (torn-down/template: hk ok, lvl=0) before the carrier → `read_live_party` reads {} → party off for the whole session (1.00.13: "StageManager ok — 0 heroes deployed"). pick and read MUST agree | [[invariants/party-live-resolution]] |
 | party/heroes = roster from the save when the live one fails (no `live_keys`/`hero_in_run` filter) | shows unplayed heroes (+0xp); the save is roster, not party | [[invariants/party-live-resolution]] |
+| a gate or calibration that samples `MONSTER_LIST` ONCE (or accepts 0 monsters to go green) | the list is validly EMPTY between waves (~16% of samples) → flaky FAIL, or silent static fallback | [[process/live-validation-gate]] · [[invariants/field-offset-autocalibration]] |
 | validating only the field you fixed after an update | the obfuscated ones (party/xp/gold) pass through broken; run `validate_live.py` | [[process/live-validation-gate]] |
 
 ## Related

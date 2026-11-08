@@ -11,6 +11,7 @@ symptoms:
   - "1.3.0 / 1.2.8 / 1.00.27 recalibration"
 code_anchors:
   - game/field_calib.py::calibrate
+  - game/field_calib.py::_wait_for_monsters
   - game/field_calib.py::discover_stage_key
   - game/field_calib.py::discover_hp_max
   - game/field_calib.py::discover_hero_list_and_cache
@@ -33,6 +34,9 @@ guarded_by:
   - tests/test_field_calib.py::test_hero_list_ignores_junk_catalog_keys
   - tests/test_field_calib.py::test_hero_list_static_pair_wins
   - tests/test_field_calib.py::test_hero_list_solo_tie_is_ambiguous
+  - tests/test_field_calib_wave_gap.py::test_calibrate_retries_through_wave_gap
+  - tests/test_field_calib_wave_gap.py::test_calibrate_keeps_static_when_list_stays_empty
+  - tests/test_field_calib_wave_gap.py::test_calibrate_does_not_retry_without_msm
 ---
 
 # Field-offset auto-calibration (the four fragile offsets)
@@ -99,6 +103,14 @@ non-static offset as described above.
 4. **Any reader of these offsets must read them dynamically**, not bake a fixed position into a struct
    read. `game/models.live_monsters` spans `HP_CURRENT..HP_MAX` computed from the live offsets, so a
    shifted `HP_MAX` is followed automatically.
+
+## Attach during a wave gap
+
+The monster list is validly EMPTY between waves (about 16% of 10 Hz samples on 1.3.2), and a
+single attach-time sample silently kept `Monster.STAGE_KEY` and `HP_MAX` static on 9 of 27 logged
+resolves ("kept static (signature not found live)"). `calibrate` therefore first waits, bounded
+(`MONSTER_RETRY_ATTEMPTS` x `MONSTER_RETRY_INTERVAL`, about 6 s), while the list reads EMPTY. An
+unreadable or null list returns at once; if no monster appears the static fallback stays.
 
 ## Why this doesn't eliminate the static offsets
 

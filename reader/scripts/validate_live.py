@@ -22,9 +22,12 @@ VALIDATES (with the game OPEN and IN COMBAT on a stage):
                  (runes/inventory/stash) not-all-None (proves RUNES/INVENTORY/STASH/ITEMS)
   [xp-live]     each deployed hero's level+xp DECODE from the ACTk cipher and the decoded LEVEL matches
                 the save (the per-build tripwire: a moved/changed cipher diverges from the save → FAIL)
-  [dps]         MonsterSpawnManager + UnitHealthController: >=1 live monster with hp_max>0
+  [dps]         MonsterSpawnManager + UnitHealthController: >=1 live monster with hp_max>0, seen within
+                a bounded sampling window (the list is validly EMPTY between waves; see
+                sample_monster_window)
   [stats]       StatsHolder.FINAL_STATS (DictFloat): >=1 hero with a dict of ~64 live stats
-  [stage]       the LIVE stage key (Monster.STAGE_KEY) resolves an entry in the StageInfoData catalog
+  [stage]       the LIVE stage key (Monster.STAGE_KEY) resolves an entry in the StageInfoData catalog,
+                seen within the same bounded window as [dps]
   [run-cycle]   LogManager resolves + LOG_LIST structurally readable (size>=0) — the run boundary
   [catalogs]    stage_info (incl. ACTBOSS x-10) + item_cat + hero_cat non-empty
 
@@ -69,6 +72,65 @@ from config.offsets import (CommonSaveData, List, LogManager, EEquipClassType, M
 # Valid classId range = the REAL members of EEquipClassType (single-source: derived from the enum,
 # not a literal). CLASS_TYPE is EEquipClassType, NEVER EHeroType (orphan) — see the obscured invariant.
 _CLASS_IDS = {int(c) for c in EEquipClassType}
+
+# [dps]/[stage] sampling window. MonsterSpawnManager.MONSTER_LIST is validly EMPTY (size 0, readable
+# header and array, same manager and list pointer) for ~0.9 s between waves and was 2.7 s after one
+# stage clear (live 1.3.2, 10 Hz: 194/1200 samples). One instantaneous sample therefore fails BOTH
+# checks on ~16% of runs, and a rerun proves nothing. Sample at 10 Hz for up to 6 s instead: 6 s is a
+# PROVISIONAL bound (only one stage transition was measured); the window failing still fails the gate.
+MONSTER_WINDOW_SAMPLES = 60
+MONSTER_WINDOW_INTERVAL = 0.1
+
+
+def sample_monster_window(sample, stage_info, max_samples=MONSTER_WINDOW_SAMPLES,
+                          interval=MONSTER_WINDOW_INTERVAL, sleep=time.sleep, now=time.monotonic):
+    """Sample the live monster list until [dps] and [stage] are both proven, or the window ends.
+
+    `sample()` returns (list_ptr, snapshot, stage_key): list_ptr is the raw MONSTER_LIST pointer
+    (None unreadable, 0 null), snapshot is models.live_monster_snapshot (None = unreadable, [] = a
+    valid EMPTY list), stage_key is models.live_stage_key. [dps] needs one sample with a readable
+    monster whose hp_max > 0; [stage] needs one sample with a stage key in the catalog. They may come
+    from different samples. NEVER accepts zero monsters: the window failing fails both checks.
+    Any unreadable/null list, or a list pointer that changes mid-window, fails at once (that is the
+    wrong-instance class of regression, not a wave gap)."""
+    res = {"dps_ok": False, "stage_ok": False, "samples": 0, "empty": 0, "invalid": 0,
+           "monsters": 0, "with_hp_max": 0, "stage_key": None, "reason": "", "seconds": 0.0}
+    t0, first_ptr, fatal = now(), None, False
+    for i in range(max_samples):
+        if i:
+            sleep(interval)
+        ptr, snap, sk = sample()
+        res["samples"] += 1
+        if ptr is None or snap is None:
+            res["invalid"] += 1
+            res["reason"], fatal = "monster list unreadable", True
+            break
+        if not ptr:
+            res["reason"], fatal = "monster list pointer null", True
+            break
+        if first_ptr is None:
+            first_ptr = ptr
+        elif ptr != first_ptr:
+            res["reason"], fatal = f"list pointer changed {hex(first_ptr)} -> {hex(ptr)}", True
+            break
+        if not snap:
+            res["empty"] += 1
+        with_max = sum(1 for _u, cur, mx in snap if cur is not None and mx is not None and mx > 0)
+        if not res["dps_ok"] and (with_max or snap):
+            # keep the latest non-empty detail until proven: 'monsters=3 withHpMax=0' = shifted HP_MAX
+            res["monsters"], res["with_hp_max"] = len(snap), with_max
+            res["dps_ok"] = bool(with_max)
+        if not res["stage_ok"] and sk is not None:
+            res["stage_key"] = sk          # reported even OUTSIDE the catalog (garbage-key diagnostic)
+            res["stage_ok"] = sk in (stage_info or {})
+        if res["dps_ok"] and res["stage_ok"]:
+            break
+    else:
+        res["reason"] = f"window ended after {res['samples']} samples"
+    if fatal:
+        res["dps_ok"] = res["stage_ok"] = False
+    res["seconds"] = round(now() - t0, 3)
+    return res
 
 
 def main():
@@ -241,10 +303,16 @@ def main():
     # iterates (unit, hp_cur, hp_max) reading MONSTER_LIST/SUMMONED_LIST + Unit.HEALTH_CONTROLLER + HP@0x40/0x4C.
     # NEVER exercised live before (matrix: DPS is L=✗) → a MONSTER_LIST/HP shift left dps=0 silently
     # across the fleet. Requires >=1 live monster with hp_max>0 (proves the whole chain: list + HealthController + HP).
-    mons = list(models.live_monsters(reader, msm)) if msm else []
-    dps_ok = any(hp_max and hp_max > 0 for _u, _cur, hp_max in mons)
-    checks.append(("dps", dps_ok,
-                   f"msm={'ok' if msm else 'None'} monsters={len(mons)} withHpMax={sum(1 for _u, _c, m in mons if m and m > 0)}"))
+    def _monster_sample():
+        return (reader.rptr(msm + MonsterSpawnManager.MONSTER_LIST),
+                models.live_monster_snapshot(reader, msm), models.live_stage_key(reader, msm))
+
+    win = sample_monster_window(_monster_sample, stage_info) if msm else None
+    wtxt = (f"window={win['samples']} samples/{win['seconds']}s empty={win['empty']} "
+            f"invalid={win['invalid']}" + (f" ({win['reason']})" if win["reason"] else "")) if win else ""
+    checks.append(("dps", bool(win and win["dps_ok"]),
+                   f"msm={'ok' if msm else 'None'} monsters={win['monsters'] if win else 0} "
+                   f"withHpMax={win['with_hp_max'] if win else 0} {wtxt}"))
 
     # [stats] StatsHolder.FINAL_STATS (Dict<StatType,float>, DictFloat 0x10/@0xC): the 64 live FINAL stats per
     # hero. NEVER validated live (matrix: FINAL_STATS is L=✗) → a shifted StatsHolder/FINAL_STATS, or the
@@ -261,12 +329,12 @@ def main():
     # scan can match false positives (1.00.17: a garbage instance read key=6775040, pt=3.77e19), so it
     # is surfaced for diagnostics but the LIVE key is what gates — never validate the stale snapshot in
     # isolation (that is what made this check spuriously red on a correctly-calibrated 1.00.17 seed).
-    live_sk = models.live_stage_key(reader, msm) if msm else None
+    live_sk = win["stage_key"] if win else None
     csd = save.pick_live_csd(reader, csd_list, stage_info)
     snap = reader.ri32(csd + CommonSaveData.CURRENT_STAGE_KEY) if csd else None
-    live_ok = live_sk is not None and live_sk in (stage_info or {})
+    live_ok = bool(win and win["stage_ok"])
     checks.append(("stage", bool(stage_info) and live_ok,
-                   f"live={live_sk} ({'in' if live_ok else 'OUTSIDE'} catalog) snapshot={snap}"))
+                   f"live={live_sk} ({'in' if live_ok else 'OUTSIDE'} catalog) snapshot={snap} {wtxt}"))
 
     # [run-cycle] LogManager resolves + LOG_LIST structurally readable. The end of EVERY run is detected by
     # the LOG_LIST growing (LogManager.LOG_LIST@0x20, size@List.SIZE); a badly-resolved LogManager or a
