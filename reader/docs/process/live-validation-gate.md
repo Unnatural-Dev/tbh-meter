@@ -3,6 +3,7 @@ type: process
 description: "Post-update, the static diff only covers NAMED classes; the OBFUSCATED ones (gold/AggregateManager, party+xp/HeroRuntime, StatsHolder) can only be validated LIVE. The validate_live.py gate resolves via the seed and requires PASS on gold+party+xp+stage+catalogs before ship — partial validation (only the fixed field) is what let two bugs slip through in 1.00.11."
 code_anchors:
   - scripts/validate_live.py
+  - scripts/validate_live.py::sample_monster_window
   - scripts/diff_offsets_vs_dump.py
 ---
 
@@ -33,6 +34,14 @@ formation position 0/1/2 the run record emits), `dps` (MonsterSpawnManager+HP), 
 exit = DO NOT ship. Run it with the game IN COMBAT on a stage (almost every check needs the party
 deployed). The OBFUSCATED/HP-only surfaces (gold, party/xp from `HeroRuntime`, `StatsHolder`, monsters) can only be measured
 HERE — the static diff doesn't verify them.
+
+## `[dps]` and `[stage]` sample a bounded window
+
+The monster list is validly EMPTY between waves (about 0.9 s every 5.4 s, 2.7 s after a stage
+clear), so one instantaneous sample failed BOTH checks on about 16% of in-combat runs.
+`sample_monster_window` samples at 10 Hz for up to 6 s (provisional: one stage transition was
+measured). It NEVER accepts zero monsters, and an unreadable/null list or a list-pointer change fails
+both checks at once. Rerunning until a sample lands on a wave is not validation.
 
 ## Immunity is in layers, not perfection
 

@@ -28,9 +28,10 @@ qualifying offset. Scan windows live in config.offsets.FieldCalibWindows.
 
 Discovery is read-only; it writes nothing to the game and nothing to disk.
 """
+import time
 from collections import Counter
 
-from config.offsets import (Array, Unit, Monster, UnitHealthController, StageManager,
+from config.offsets import (Array, List, Unit, Monster, UnitHealthController, StageManager,
                             MonsterSpawnManager, HeroRuntime, HeroInfoData,
                             FieldCalibWindows as Win)
 
@@ -42,6 +43,11 @@ _MAX_HERO_SLOTS = 12
 _MAX_HP = 1e9
 _HP_TOLERANCE = 1.01        # cur may sit a hair above max on a float round-trip
 _SAMPLE_MONSTERS = 8
+# The live monster list is validly EMPTY between waves (~16% of 10 Hz samples on 1.3.2), so a single
+# attach-time sample silently kept the static STAGE_KEY/HP_MAX on 9 of 27 logged resolves. When the
+# list reads EMPTY (not unreadable), wait a short bounded window for monsters before discovering.
+MONSTER_RETRY_ATTEMPTS = 30
+MONSTER_RETRY_INTERVAL = 0.2
 
 
 def _ri32(reader, a):
@@ -200,12 +206,31 @@ def discover_hero_list_and_cache(reader, sm_list, hero_cat):
     return _pick(best, static) or (None, None)
 
 
-def calibrate(reader, msm, sm_list, stage_info, hero_cat, log=lambda *a: None):
+def _wait_for_monsters(reader, msm, sleep):
+    """Bounded wait while the monster list is a readable EMPTY list (a wave gap). Returns at once on
+    a populated, unreadable, or null list, so only the empty-gap case ever waits. Returns slept count."""
+    if not msm:
+        return 0
+    for n in range(MONSTER_RETRY_ATTEMPTS):
+        ml = _rptr(reader, msm + MonsterSpawnManager.MONSTER_LIST)
+        size = _ri32(reader, ml + List.SIZE) if ml else None
+        if size != 0:
+            return n
+        sleep(MONSTER_RETRY_INTERVAL)
+    return MONSTER_RETRY_ATTEMPTS
+
+
+def calibrate(reader, msm, sm_list, stage_info, hero_cat, log=lambda *a: None, sleep=time.sleep):
     """Run all discoveries and APPLY the found offsets in-memory over the static offset classes.
     Only overwrites a field when its signature was found; otherwise the static fallback stays.
+    The monster discoveries first wait (bounded, ~6 s max) through an inter-wave EMPTY list.
     Returns a dict of {field_name: (old, new, 'found'|'fallback')} for logging/diagnostics."""
     report = {}
 
+    waited = _wait_for_monsters(reader, msm, sleep)
+    if waited:
+        log(f"[field-calib] monster list empty at attach (wave gap) — waited {waited} x "
+            f"{MONSTER_RETRY_INTERVAL}s for monsters")
     sk = discover_stage_key(reader, msm, stage_info)
     report["Monster.STAGE_KEY"] = (Monster.STAGE_KEY, sk, "found" if sk else "fallback")
     if sk:
