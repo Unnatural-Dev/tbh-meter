@@ -16,6 +16,7 @@ vi.mock("electron", () => ({
 
 import {
   loadSettings,
+  flushPendingSettings,
   getSettings,
   updateSettings,
 } from "../settings.js";
@@ -67,6 +68,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  flushPendingSettings();
   vi.useRealTimers();
   rmSync(settingsFile, { force: true });
 });
@@ -95,6 +97,28 @@ describe("settings — display-filter defaults", () => {
 });
 
 describe("settings — persist then reload", () => {
+  it("flushes the latest edits synchronously when quitting before the debounce", () => {
+    const opacity = 0.7;
+    updateSettings({ opacity, minDurationSec: 15 });
+    updateSettings({ minDurationSec: 30 });
+    expect(existsSync(settingsFile)).toBe(false);
+
+    flushPendingSettings();
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(loadSettings()).toMatchObject({ opacity, minDurationSec: 30 });
+  });
+
+  it("leaves the settings file untouched when there is no pending write", () => {
+    const legacy = '{"opacity":0.7}';
+    writeFileSync(settingsFile, legacy, "utf-8");
+    loadSettings();
+
+    flushPendingSettings();
+
+    expect(readFileSync(settingsFile, "utf-8")).toBe(legacy);
+  });
+
   it("updateSettings persists the filter prefs to disk and a fresh load restores them", () => {
     updateSettings({ hideNonCounted: false, minDurationSec: 30 });
     // The debounced write is scheduled; flush it.

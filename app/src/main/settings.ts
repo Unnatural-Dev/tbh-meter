@@ -118,16 +118,20 @@ export function updateSettings(partial: Partial<AppSettings>): AppSettings {
 
 function scheduleWrite(): void {
   if (writeTimer) clearTimeout(writeTimer);
-  writeTimer = setTimeout(() => {
-    writeTimer = null;
-    try {
-      const path = settingsPath();
-      mkdirSync(join(path, ".."), { recursive: true });
-      writeFileSync(path, JSON.stringify(cache, null, 2), "utf-8");
-    } catch {
-      // best effort — never crash on a settings write failure
-    }
-  }, 300);
+  writeTimer = setTimeout(flushPendingSettings, 300);
+}
+
+export function flushPendingSettings(): void {
+  if (writeTimer === null) return;
+  clearTimeout(writeTimer);
+  writeTimer = null;
+  try {
+    const path = settingsPath();
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, JSON.stringify(cache, null, 2), "utf-8");
+  } catch {
+    // best effort — never crash on a settings write failure
+  }
 }
 
 /**
