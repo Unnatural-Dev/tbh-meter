@@ -30,10 +30,19 @@ code_anchors:
   - meter_windows.py::_absorb_drop
   - meter_windows.py::_drop_counts
   - meter_windows.py::LogScanCursor
+  - metrics/run_boundary.py::RunBoundary
+  - metrics/run_boundary.py::RunBoundary.close
+  - metrics/run_boundary.py::RunBoundary.observe_stage
+  - metrics/run_boundary.py::RunBoundary.observe_dead_count
+  - metrics/run_boundary.py::RunBoundary.should_abandon
+  - metrics/run_boundary.py::ADOPT_GRACE
+  - metrics/run_boundary.py::RELOAD_TOLERANCE
   - config/offsets.py::LogManager.LOG_LIST
 asserts:
   - meter_windows.PARTIAL_CAPTURE_MIN == 0.95
   - meter_windows.PENDING_CLOSE_GRACE == 3.0
+  - metrics.run_boundary.ADOPT_GRACE == 3.0
+  - metrics.run_boundary.RELOAD_TOLERANCE == 2
 guarded_by:
   - tests/test_run_lifecycle_predicates.py::TestShouldSkipRun::test_stage_x10_under_30s_is_kept
   - tests/test_run_lifecycle_predicates.py::TestIsPartial::test_zero_damage_success_is_always_partial
@@ -43,6 +52,10 @@ guarded_by:
   - tests/test_raw_record.py::test_absorbed_boss_box_lands_inside_drops_envelope_without_shape_change
   - tests/test_log_scan.py::TestCapRotation::test_rotation_with_size_pinned_detects_new_tail_entry
   - tests/test_log_scan.py::TestClearThenBoxOrderingAcrossRotation::test_clear_then_box_separate_rotated_ticks
+  - tests/test_run_boundary.py::TestRecordedFailBoundaries::test_kills_and_damage_match_todays_meter
+  - tests/test_run_boundary_rules.py::TestReloadRule::test_tolerance_of_two
+  - tests/test_run_boundary_rules.py::TestStageAdoption::test_does_not_readopt_at_or_after_grace
+  - tests/test_run_boundary_rules.py::TestShouldAbandon::test_abandoned_close_uses_the_old_stage_key
 ---
 
 # Run lifecycle
@@ -83,7 +96,34 @@ The close is decided by comparing the new entry's klass-pointer against `sc_clas
 (The same entries also carry `GetBoxLog`/`HeroDieLog`/`ResurrectionLog`, matched by the
 same klass-pointer pattern.) There is also a third
 outcome — `close_run("abandoned", ...)` — when the stage reloads (DeadMonsterUnit drops) or the
-player switches stage without clearing/failing, once past the initial grace window.
+player switches stage without clearing/failing, once past the initial grace window (that rule lives in
+`metrics/run_boundary.py`, see the next section).
+
+## Run-end rules + kill/damage ledger: `metrics/run_boundary.py::RunBoundary`
+
+The orchestrator READS memory (monster snapshot, live stage key, `DeadMonsterUnit` size, `LOG_LIST`) and
+feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the per-run ledger. It owns:
+
+- the ledger — a fresh `DpsTracker` per run: `kills`, `damage`, `dps(now)`, `peak_dps`, `alive`; an invalid
+  snapshot (`None`) leaves the state untouched;
+- the run `start` and the adopted `stage_key`: the live stage is adopted while none is adopted yet, or
+  during `ADOPT_GRACE` after the run starts (auto-replay/advance right after a clear); keys outside the
+  catalog are never adopted;
+- the **reload** rule (`observe_dead_count`): `DeadMonsterUnit` is cumulative and only a manual restart of
+  the stage drops it — a drop of MORE than `RELOAD_TOLERANCE` is a reload; a failed read (`None`) is
+  neither a reload nor a new baseline; the baseline survives a close and is cleared only by
+  `reset_dead_baseline()` at re-attach;
+- the **switch** rule and the abandon decision (`should_abandon`): once past the grace and with a stage
+  adopted, `reload OR (live key is another catalogued stage)`. The orchestrator evaluates it only on a tick
+  where no log closed the run, and closes with the OLD `stage_key`;
+- `close(now)` — returns the immutable `ClosedRun` (kills, damage, measured, stage_key) that `close_run`
+  puts in the record/summary, and starts the next run's ledger; `restart(now)` discards the run in
+  progress at re-attach.
+
+What does NOT move: closing on `StageClearLog`/`StageFailedLog` stays in the orchestrator's log scan (it
+needs the memory reads), and the run's other state (gold/xp/party/drops/deaths) stays in `new_run()`.
+A new end-of-run rule goes in the module (pure, testable), not inline in `run()` —
+[[invariants/orchestration-purity]].
 
 ## Pending-close: the boss box arrives AFTER the clear (only the success WRITE is delayed)
 
@@ -172,11 +212,12 @@ contradicts:
 
 ## new_run() initializes ALL the per-run state
 
-`new_run()` is the SOLE source of a run's state and returns the zeroed dict: `dps` (a new
-DpsTracker), `mobs`, `start`, the gold baselines (`gold_start`/`gold_live_start`/`gold_save_start`),
+`new_run()` is the SOLE source of a run's state and returns the zeroed dict (the kill/damage ledger,
+start time and stage adoption are NOT in it — they are `RunBoundary`'s, restarted by `close()`/`restart()`
+alongside it): the gold baselines (`gold_start`/`gold_live_start`/`gold_save_start`),
 `heroes_start`, the live party (`party_live_start`) + the live xp accumulator (`xp_acc`, seeded
 with the party at t=0 — see [[invariants/metric-fallback-chains]]), `build`, `drops`,
-`party_seen`, `deaths`/`revives`/`killers`, `stage_key` and `adopt_until`. **Golden rule: every
+`party_seen`, `deaths`/`revives`/`killers`. **Golden rule: every
 field that ACCUMULATES during the run (gold/xp delta, deaths, drops) has to be born here** —
 otherwise the value leaks from the previous run. When adding a new run field, initialize it in
 `new_run` AND emit it in `build_raw_record` (see [[invariants/schema-versioning]] and [[guides/add-runs-field]]).
@@ -185,5 +226,6 @@ otherwise the value leaks from the previous run. When adding a new run field, in
 - [[invariants/instance-selection]] — the run end depends on the LIVE LogManager's LOG_LIST; if the pick grabbed the dead list, `size` never grows and NO run closes.
 - [[invariants/schema-versioning]] — new run field: bump `SCHEMA_VERSION` + init in `new_run` + serialize in `close_run`.
 - [[invariants/log-event-detection]] — the klass-pointer matching of the `LOG_LIST`'s new entries (what triggers the close).
+- [[invariants/orchestration-purity]] — why the boundary rules + ledger are a pure module (`metrics/run_boundary.py`), not inline in `run()`.
 - [[reference/run-data-map]] — the shape of the record `close_run` emits, field by field.
 - [[guides/add-runs-field]] — the end-to-end recipe for adding a field to the run.

@@ -16,6 +16,7 @@ code_anchors:
   - meter_windows.py
   - meter_windows.py::run
   - meter_windows.py::_pick_list_singleton
+  - metrics/run_boundary.py::RunBoundary
   - agent_windows.py
   - agent_windows.py::op_dump
 guarded_by:
@@ -58,7 +59,9 @@ no one else's:
   `LogManager`/`MonsterSpawnManager` instance out of the scan's false positives — see
   [[invariants/instance-selection]].
 - **Re-attach / stage-reload detection**: read `LOG_LIST`/`DeadMonsterUnit` to learn that the game
-  closed (reads failing) or the stage reloaded.
+  closed (reads failing) or the stage reloaded. Only the READ is scaffolding: what a dropped count
+  MEANS (the reload rule, the stage-switch rule, adoption, the per-run kill/damage ledger) is decided
+  by `metrics/run_boundary.py::RunBoundary`, which the loop feeds — see [[invariants/run-lifecycle]].
 
 Note that even this scaffolding **does NOT invent an offset**: it uses `List.SIZE`/`List.ITEMS`/`Array.DATA`
 etc. from `config.offsets` ([[invariants/offsets-single-source]]).
@@ -73,7 +76,7 @@ and the orchestrator bloats to the point where nobody understands the lifecycle 
 
 Proof the boundary works: **the pure decisions the orchestrator legitimately owns are extracted as
 pure functions and tested in isolation** — `_should_skip_run`, `_is_partial`, `_pick_list_singleton`,
-`_read_catalogs` (touching no process at all, they run on Mac via `MockReader`). That's exactly how
+`RunBoundary` (run-end rules + ledger, fed by the loop), `_read_catalogs` (touching no process at all, they run on Mac via `MockReader`). That's exactly how
 the `_is_partial` drift (the note said `== 0`, the code is `total_damage <= 0`) got **covered by a
 test** instead of becoming a silent bug. If a "metric" of yours can't be tested this way, it's in the
 wrong place — move it to `metrics/` or `game/`.
