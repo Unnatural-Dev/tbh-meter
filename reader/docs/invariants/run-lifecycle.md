@@ -65,6 +65,10 @@ guarded_by:
   - tests/test_run_wiring.py::test_startup_resolution_read_error_escapes_run
   - tests/test_run_wiring.py::test_abandoned_record_carries_ledger_mobs_damage_duration_and_old_stage
   - tests/test_run_wiring.py::test_success_close_emits_ledger_and_live_line_shows_pre_close_values
+  - tests/test_run_wiring.py::test_terminal_reload_then_missing_stable_or_increasing_count_keeps_next_ledger
+  - tests/test_run_wiring.py::test_terminal_reload_retains_baseline_for_fresh_post_grace_drop
+  - tests/test_run_wiring.py::test_repeated_terminal_logs_after_reload_close_separate_ledgers_once
+  - tests/test_run_wiring.py::test_reattach_after_terminal_reload_discards_old_counter_and_keeps_new_close
   - tests/test_run_wiring.py::test_anomaly_dump_flag_writes_the_ticks_of_an_overcounted_success
   - tests/test_run_wiring.py::test_without_the_flag_nothing_is_written_and_records_are_unchanged
   - tests/test_anomaly_dump.py::test_unknown_values_never_trigger
@@ -132,6 +136,22 @@ feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the pe
 - `close(now)` — returns the immutable `ClosedRun` (kills, damage, measured, stage_key) that `close_run`
   puts in the record/summary, and starts the next run's ledger; `restart(now)` discards the run in
   progress at re-attach.
+
+### Caller ordering and transient reload observations
+
+`run()` feeds the dead count on **every tick**, including `None`, before log
+acquisition and abandonment decisions. Each observation replaces the transient
+reload decision; `None` clears that decision without replacing the cumulative
+baseline. A success/fail log coincident with a reload closes the current ledger,
+and `closed` suppresses the same tick's abandonment check. The next observation
+must happen before deciding whether to abandon the new ledger.
+
+`close()` does not promise to clear a pending reload decision for arbitrary callers
+that omit this observation step. The real caller regressions cover missing,
+stable and increasing next counts, repeated terminals, a fresh post-grace drop,
+and reattachment. This documents existing ordering, not a demonstrated overcount
+fix. Reattachment discards the interrupted ledger, reseeds the real log cursor,
+and resets the previous attachment's cumulative dead baseline.
 
 What does NOT move: closing on `StageClearLog`/`StageFailedLog` stays in the orchestrator's log scan (it
 needs the memory reads), and the run's other state (gold/xp/party/drops/deaths) stays in `new_run()`.
