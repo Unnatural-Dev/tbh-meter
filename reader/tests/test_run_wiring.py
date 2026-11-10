@@ -10,6 +10,10 @@ import pytest
 import meter_windows as mw
 from game import attach
 from metrics import run_boundary as rbm
+from tests import test_attach as attachment
+
+# Register the existing memory fixture here; it also restores calibrated offsets.
+attachment_world = attachment.world
 
 A, B = 101, 202
 STAGE_INFO = {A: (1, 1, 5, 0), B: (1, 2, 5, 0)}   # (act, stage, ?, diff)
@@ -63,7 +67,8 @@ class World:
         self.die_at = None        # tick at which the FIRST reader starts failing (None = never)
 
 
-def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
+def _drive(monkeypatch, tmp_path, world, hz=1, *, reader_factory=FakeReader,
+           real_prepare=False, **run_kwargs):
     complete = attach.AttachedState(
         sc_class=SC, sf_class=SF, msm=MSM, lm=LM, csd_list=[CSD], psd_list=[0x60],
         stage_info=STAGE_INFO, item_cat={2: (1, 1, 1)}, hero_cat={3: 1}, sm_list=[0x70],
@@ -74,7 +79,7 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
     readers = []
 
     def make_reader(handle):
-        r = FakeReader(world, dies_at=world.die_at if not readers else None)   # only the 1st reader dies
+        r = reader_factory(world, dies_at=world.die_at if not readers else None)   # only the 1st reader dies
         readers.append(r)
         return r
     monkeypatch.setattr(mw, "Reader", make_reader)
@@ -87,7 +92,8 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
         if len(readers) > 1:              # a re-attach resolve takes ~90 s of wall clock
             world.t += 90.0
         return complete
-    monkeypatch.setattr(attach, "prepare", prepare)
+    if not real_prepare:
+        monkeypatch.setattr(attach, "prepare", prepare)
     monkeypatch.setattr(mw, "describe_reader_version", lambda: "test-ver")
     monkeypatch.setattr(mw, "diag", lambda *a, **k: world.diag.append(a[0] if a else ""))
     monkeypatch.setattr(mw, "_emit_status", lambda *a, **k: None)
@@ -132,6 +138,98 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
     monkeypatch.setattr(mw.time, "sleep", sleep)
     mw.run(hz=hz, output_dir=str(tmp_path), debug=False, **run_kwargs)
     return readers
+
+
+def _prepared_restart(monkeypatch, tmp_path, attachment_world, failure, *, fail_at=2):
+    """Reuse prepare's memory fixture, with the existing clock/log script at its edges.
+
+    No replacement of prepare or _resolve_all: failures cross the real exception
+    boundary. The shared fixture restores all four process-global calibrated offsets.
+    """
+    memory, classes, instances, _, _ = attachment_world
+    classes["StageClearLog"] = {SC}
+    classes["StageFailedLog"] = {SF}
+    instances["MonsterSpawnManager"] = [MSM]
+    instances["LogManager"] = [LM]
+    (tmp_path / "resolve_cache.json").write_text(json.dumps({
+        "fmt": attach.CACHE_FMT, "calib": {"fp": attachment.CALIB}}), encoding="utf-8")
+    w = World()
+    w.die_at = 1
+    w.stop_after = 13
+    w.script = {t: dict(key=1001) for t in range(13)}
+    w.script[6] = dict(key=1001, snap=[_mob(1)])
+    w.script[7] = dict(key=1001, snap=[])
+    w.script[8] = dict(key=1001, log=1)
+    readers = []
+
+    class PreparedReader(attachment.Memory):
+        def __init__(self, world, dies_at):
+            super().__init__(memory._mem)
+            self.scripted = FakeReader(world, dies_at)
+            self.generation = len(readers) + 1
+            readers.append(self)
+
+        def rptr(self, a):
+            if (a in (LM + mw.LogManager.LOG_LIST, 0x1000 + mw.List.ITEMS,
+                      MSM + mw.MonsterSpawnManager.DEAD_MONSTER_LIST)
+                    or 0x1100 + mw.Array.DATA <= a < 0x1100 + mw.Array.DATA + 8 * 64
+                    or 0x9000 <= a < 0xD000):
+                return self.scripted.rptr(a)
+            return super().rptr(a)
+
+        def ri32(self, a):
+            if (failure == "carrier" and self.generation == fail_at
+                    and a == attachment.CSD + mw.CommonSaveData.CURRENT_STAGE_KEY):
+                raise RuntimeError("carrier read failed")
+            if a in (0x1000 + mw.List.SIZE, 0x2000 + mw.List.SIZE) or 0x9000 <= a < 0xD000:
+                return self.scripted.ri32(a)
+            return super().ri32(a)
+
+    backrefs = attach.instances_of
+
+    def read_instances(reader, *a, **k):
+        if failure == "resolution" and reader.generation == fail_at:
+            raise RuntimeError("resolution read failed")
+        return backrefs(reader, *a, **k)
+    monkeypatch.setattr(attach, "instances_of", read_instances)
+    return w, PreparedReader
+
+
+def test_reattach_resolution_read_error_retries_and_resumes_real_output(
+        monkeypatch, tmp_path, attachment_world, capsys):
+    w, reader = _prepared_restart(monkeypatch, tmp_path, attachment_world, "resolution")
+    _drive(monkeypatch, tmp_path, w, reader_factory=reader, real_prepare=True)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == ["success"]
+    assert _val(recs[0]["stageKey"]) == 1001
+    assert _val(recs[0]["mobs"]) == 1
+    assert _val(recs[0]["total_damage"]) == 100
+    assert recs[0]["duration"] == 2
+    assert w.live[7]["mobs"] == 1 and w.live[7]["damage_now"] == 100
+    assert w.live[7]["elapsed"] == 1
+    out = capsys.readouterr().out
+    assert out.count("[re-attaching] game came back") == 2
+    assert out.count("[ok] re-attached") == 1
+    assert "mobs 1/" in out
+
+
+def test_reattach_carrier_read_error_after_resolution_escapes_run(
+        monkeypatch, tmp_path, attachment_world, capsys):
+    w, reader = _prepared_restart(monkeypatch, tmp_path, attachment_world, "carrier")
+    with pytest.raises(RuntimeError, match="carrier read failed"):
+        _drive(monkeypatch, tmp_path, w, reader_factory=reader, real_prepare=True)
+    assert _records(tmp_path) == []
+    out = capsys.readouterr().out
+    assert out.count("[re-attaching] game came back") == 1
+    assert "[ok] re-attached" not in out
+
+
+def test_startup_resolution_read_error_escapes_run(monkeypatch, tmp_path, attachment_world):
+    w, reader = _prepared_restart(monkeypatch, tmp_path, attachment_world, "resolution", fail_at=1)
+    with pytest.raises(RuntimeError, match="resolution read failed"):
+        _drive(monkeypatch, tmp_path, w, reader_factory=reader, real_prepare=True)
+    assert _records(tmp_path) == []
+    assert w.live == {}
 
 
 def _records(tmp_path):
