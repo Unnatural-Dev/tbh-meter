@@ -12,8 +12,8 @@ code_anchors:
   - game/drops.py::read_box_cooldowns
   - game/drops.py::read_stage_drops
   - game/drops.py::build_catalog
-  - meter_windows.py::write_drop_catalog
-  - meter_windows.py::_write_atomic
+  - game/attach.py::write_drop_catalog
+  - shared/utils.py::_write_atomic
   - config/offsets.py::ItemInfoData.DROP_COOLDOWN
   - config/offsets.py::StageInfoData.MONSTER_DROP_KEY
   - config/offsets.py::StageInfoData.BOSS_DROP_KEY
@@ -46,8 +46,8 @@ Live-confirmed on 1.3.2 by dumping the rows read-only and matching the datamined
 ## How it flows
 
 - Collected in the SAME backref sweep as PSD/CSD/StageManager on the fast path (single-sweep:
-  extra needles cost ~0) and from `pass3` on the scan path. The instance lists ride OUTSIDE the
-  frozen 14-tuple (`_LAST_CATALOG_INSTANCES`).
+  extra needles cost ~0) and from `pass3` on the scan path. The instance lists are carried in the
+  named attachment state (`AttachedState.catalog_instances`).
 - `write_drop_catalog` runs once per resolve (startup + re-attach), joins rates + cooldowns, keeps
   ONLY stages present in the already-validated `stage_info` (a garbage instance can't surface a
   phantom stage), and writes `drop_catalog.json` atomically (`_write_atomic`, the same writer as

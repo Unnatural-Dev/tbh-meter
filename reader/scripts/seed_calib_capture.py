@@ -36,7 +36,8 @@ if _reader_root is None:
              "or from inside reader/.")
 sys.path.insert(0, _reader_root)
 
-import meter_windows as mw                                   # noqa: E402
+import meter_windows as mw
+from game import attach                                   # noqa: E402
 from shared.memory import Reader, find_pid, open_process     # noqa: E402
 from il2cpp import typeinfo                                  # noqa: E402
 
@@ -61,18 +62,20 @@ def main():
     if not fp:
         print("[x] couldn't read GameAssembly.dll for the build fingerprint — can't seed.")
         return 1
-    print(f"[ok] build {game_version} | fp {fp} | CACHE_FMT {mw.CACHE_FMT}")
+    print(f"[ok] build {game_version} | fp {fp} | CACHE_FMT {attach.CACHE_FMT}")
 
     # FORCE the slow path (full scan) -> catalogs at the CURRENT fmt, without reusing an old calib/seed.
     print("[..] FULL scan (~1-3min) — forced, to capture catalogs at the current fmt...")
     t0 = time.time()
-    tup, classes = mw._resolve_scan(reader)
-    (sc, sf, msm, lm, _csd, _psd, stage_info, item_cat, hero_cat,
-     _sm, gold_klass, _gb, _die, _res) = tup
+    resolved, classes = attach._resolve_scan(reader)
+    stage_info = resolved.stage_info
+    item_cat = resolved.item_cat
+    hero_cat = resolved.hero_cat
+    gold_klass = resolved.gold_klass
     print(f"[ok] scan in {time.time() - t0:.0f}s.")
 
     # Resolution GATE (mirrors run()): essential managers/logs resolved.
-    if not (msm and lm and sc and sf):
+    if not resolved.complete:
         print("[x] incomplete resolution (managers/logs missing). ENTER A STAGE and run again.")
         return 1
     # Catalog GATE (mirrors save_calib's persist-gate): empty = scan ran outside a stage.
@@ -90,13 +93,13 @@ def main():
 
     # CALIBRATE into a TEMP (discover_anchor + idx_ut + atomic write via save_calib). Validating the TEMP —
     # not the seed that already exists — avoids a false-OK if calibration fails and the old seed stays put.
-    seed_path = mw._seed_path()
+    seed_path = attach._seed_path()
     tmp_cache = os.path.join(os.path.dirname(seed_path), ".calib_seed_capture.tmp.json")
     try:
         os.remove(tmp_cache)
     except OSError:
         pass
-    mw._calibrate(reader, pid, fp, tmp_cache, classes, stage_info, item_cat, hero_cat, gold_klass)
+    attach._calibrate(reader, pid, fp, tmp_cache, classes, stage_info, item_cat, hero_cat, gold_klass)
 
     if not os.path.isfile(tmp_cache):
         print("[x] calibration wrote nothing — discover_anchor/idx_ut failed (see [calib] FAILED above).")
@@ -109,14 +112,14 @@ def main():
         except OSError:
             pass
     # SAME checks as --selftest (meter_windows --selftest): fmt matches + non-empty calib block for fp.
-    if doc.get("fmt") != mw.CACHE_FMT or not (doc.get("calib") or {}).get(fp):
+    if doc.get("fmt") != attach.CACHE_FMT or not (doc.get("calib") or {}).get(fp):
         print(f"[x] invalid calib (fmt={doc.get('fmt')}, fp present="
               f"{bool((doc.get('calib') or {}).get(fp))}). Likely a degraded catalog — run in combat.")
         return 1
 
     # PROMOTE to the real seed: 1 fp (the current build), indent=2 like the committed file. Atomic.
     entry = doc["calib"][fp]
-    seed_doc = {"fmt": mw.CACHE_FMT, "calib": {fp: entry}}
+    seed_doc = {"fmt": attach.CACHE_FMT, "calib": {fp: entry}}
     os.makedirs(os.path.dirname(seed_path), exist_ok=True)
     tmp_out = seed_path + ".tmp"
     with open(tmp_out, "w", encoding="utf-8") as f:

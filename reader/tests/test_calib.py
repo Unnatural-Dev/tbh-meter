@@ -17,8 +17,8 @@ import os
 
 import pytest
 
-import meter_windows
-from meter_windows import CACHE_FMT, _read_calib, load_calib, save_calib
+from game import attach
+from game.attach import CACHE_FMT, _read_calib, load_calib, save_calib
 
 FP = "1.00.07-0x6a203f51-0x62ea000"
 ANCHOR_RVA = 0x5B070E0
@@ -50,7 +50,7 @@ def _seed_isolated(tmp_path, monkeypatch):
     _seed_path at a nonexistent file, so these tests exercise the PURE cache
     DETERMINISTICALLY (without depending on which fp the committed seed covers). TestSeedFallback
     overrides this explicitly to prove the fallback."""
-    monkeypatch.setattr(meter_windows, "_seed_path",
+    monkeypatch.setattr(attach, "_seed_path",
                         lambda: os.path.join(str(tmp_path), "_absent_seed.json"))
 
 
@@ -226,7 +226,7 @@ class TestSeedFallback:
         assert load_calib(_path(tmp_path), FP) is None
 
     def test_missing_seed_file_returns_none(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(meter_windows, "_seed_path",
+        monkeypatch.setattr(attach, "_seed_path",
                             lambda: os.path.join(str(tmp_path), "nope.json"))
         assert load_calib(_path(tmp_path), FP) is None
 
@@ -258,7 +258,7 @@ def _write_seed(tmp_path, monkeypatch, fp, **over):
     entry.update(over)
     with open(seed, "w", encoding="utf-8") as f:
         json.dump({"fmt": CACHE_FMT, "calib": {fp: entry}}, f)
-    monkeypatch.setattr(meter_windows, "_seed_path", lambda: seed)
+    monkeypatch.setattr(attach, "_seed_path", lambda: seed)
     return seed
 
 
@@ -410,7 +410,7 @@ class TestSeedCoverageGatePersist:
         seed = os.path.join(str(tmp_path), "calib_seed.json")
         with open(seed, "w", encoding="utf-8") as f:
             json.dump([], f)
-        monkeypatch.setattr(meter_windows, "_seed_path", lambda: seed)
+        monkeypatch.setattr(attach, "_seed_path", lambda: seed)
         save_calib(_path(tmp_path), FP, ANCHOR_RVA, INDICES, IDX_UT,
                    STAGE_INFO, ITEM_CAT, HERO_CAT)
         out = load_calib(_path(tmp_path), FP)

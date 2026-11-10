@@ -25,7 +25,8 @@ import os
 
 import pytest
 
-from meter_windows import CACHE_FMT, GAME_VERSION, _read_calib
+from meter_windows import GAME_VERSION
+from game.attach import CACHE_FMT, _read_calib
 
 _SEED = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "config", "calib_seed.json"))
 

@@ -24,13 +24,13 @@ symptoms:
   - "stage ? only on a specific stage"
   - "cache with fewer stages than seed"
 code_anchors:
-  - meter_windows.py::CACHE_FMT
-  - meter_windows.py::_stage_info_ok
-  - meter_windows.py::_covers_seed_keys
+  - game/attach.py::CACHE_FMT
+  - game/attach.py::_stage_info_ok
+  - game/attach.py::_covers_seed_keys
   - il2cpp/resolver.py::resolve_via_rva
   - config/calib_seed.json
 asserts:
-  - meter_windows.CACHE_FMT == 9
+  - game.attach.CACHE_FMT == 9
 guarded_by:
   - tests/test_calib.py::TestTolerateOldJson::test_old_fmt_returns_none
   - tests/test_calib.py::TestSeedFallback::test_seed_fp_miss_returns_none
@@ -54,7 +54,7 @@ hero_cat}`, written to the user's `resolve_cache.json` (learned at the end of a 
 shipped inside the `.exe` via `--add-data`). This is what lets the FIRST launch on a shipped build
 skip the ~70s scan (it becomes ~ms).
 
-**The hard rule.** `CACHE_FMT` (the only live definition lives in `meter_windows.py`) bumps
+**The hard rule.** `CACHE_FMT` (the only live definition lives in `game/attach.py`) bumps
 **whenever the SHAPE of the calib block changes** — a new key, a different shape for a catalog, new
 semantics for a field. The current `9`, for instance, started including the ACTBOSS stages (x-10)
 in `stage_info`; calibs written under the previous shape lack those keys, and since the fast path
@@ -73,7 +73,7 @@ TWO fronts:
 **The recipe when bumping `CACHE_FMT`:** run the capturer (`scripts/seed_calib_capture.py` —
 zero-arg, does a live scan and stamps the current `fmt`) to **recapture**
 `config/calib_seed.json` in the new format, and update this note + the `assert`
-(`meter_windows.CACHE_FMT == 9`). The shared `reader/` may be on an old fmt → sync HEAD before
+(`game.attach.CACHE_FMT == 9`). The shared `reader/` may be on an old fmt → sync HEAD before
 capturing, or the seed comes out stamped wrong.
 
 **Why this is SAFE even if the seed is old/from another build.** The calib is **build-keyed by

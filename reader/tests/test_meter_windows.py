@@ -4,11 +4,11 @@
 import json
 
 from config.offsets import Array, Class, EStageType, List, StageInfoData
-from meter_windows import (BOX_KEY_BY_TIER, CACHE_FMT, PENDING_CLOSE_GRACE,
+from meter_windows import (BOX_KEY_BY_TIER, PENDING_CLOSE_GRACE,
                            _absorb_drop, _drop_counts, _flush_pending_rec,
-                           _new_pending, _pick_list_singleton, _read_calib,
-                           _read_catalogs, _seed_path, _stage_info_ok,
-                           _suffix_int, _valid_list_size)
+                           _new_pending, _suffix_int)
+from game.attach import (CACHE_FMT, _pick_list_singleton, _read_calib,
+                         _read_catalogs, _seed_path, _stage_info_ok, _valid_list_size)
 from tests.conftest import MockReader
 
 LIST_OFF = 0x20   # e.g. LogManager.LOG_LIST / MonsterSpawnManager.MONSTER_LIST

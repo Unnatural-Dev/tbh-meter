@@ -37,7 +37,7 @@ type: invariant
 description: "A rich one-liner — what it is + why it matters (>= 20 chars)."
 symptoms: ["runs not closing", "dead list", "doubled gold"]   # the vocabulary the agent greps
 code_anchors:                       # file::symbol — resolved by AST against the code
-  - meter_windows.py::_pick_list_singleton
+  - game/attach.py::_pick_list_singleton
   - config.offsets::Dict8B.STRIDE   # ::Class.ATTR also resolves
 asserts:                            # load-bearing values checked against the real code
   - meter_windows.SCHEMA_VERSION == 11

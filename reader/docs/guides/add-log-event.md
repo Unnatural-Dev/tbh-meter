@@ -2,7 +2,7 @@
 type: guide
 description: "Recipe for capturing a NEW LogManager event: put the class in TARGETS → grab the resolved klass (round-trip-validated) → detect by klass-pointer equality in the loop → read the fields by offsets.py constant with defensive reads. Detection is by klass, NEVER by an ELogType field (it was stripped from the dump)."
 code_anchors:
-  - meter_windows.py::TARGETS
+  - game/attach.py::TARGETS
   - meter_windows.py::run
   - meter_windows.py::_suffix_int
   - config/offsets.py::GetBoxLog
@@ -35,7 +35,7 @@ in [[process/value-mapping-method]]).
 
 ## 1. Put the class in `TARGETS`
 
-`TARGETS` (in `meter_windows.py`) is the list of class names whose K the resolver **learns** —
+`TARGETS` (in `game/attach.py`) is the list of class names whose K the resolver **learns** —
 by RVA index in the fast-path and by scan in the fallback. **Without the name here, the resolver
 never resolves that K**, and the `kl ==` of step 3 never matches: the event goes unnoticed forever.
 The log's class name has to be **stable** (>= 3 letters, non-obfuscated) — `StageClearLog` and co.

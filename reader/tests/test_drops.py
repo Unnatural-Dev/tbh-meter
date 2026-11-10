@@ -7,7 +7,7 @@ Values mirror the LIVE 1.3.2 read (StageInfoData/ItemInfoData dumped read-only):
 
 import json
 
-import meter_windows as mw
+from game import attach as mw
 from config.offsets import StageInfoData, ItemInfoData
 from game import drops
 from tests.conftest import MockReader
@@ -88,15 +88,12 @@ def test_never_raises_on_unreadable_reader():
 
 
 class TestWriteDropCatalog:
-    """meter_windows.write_drop_catalog: the orchestrator's never-raises glue. Writes ONLY when the
+    """game.attach.write_drop_catalog: the orchestrator's never-raises glue. Writes ONLY when the
     latest resolve left both instance lists AND at least one stage survives the stage_info gate."""
 
-    def _inst(self, monkeypatch, inst):
-        monkeypatch.setattr(mw, "_LAST_CATALOG_INSTANCES", inst)
-
     def test_writes_gated_catalog(self, monkeypatch, tmp_path):
-        self._inst(monkeypatch, {"StageInfoData": STAGES, "ItemInfoData": ITEMS})
-        assert mw.write_drop_catalog(_reader(), str(tmp_path), STAGE_INFO, "1.3.2") == 2
+        inst = {"StageInfoData": STAGES, "ItemInfoData": ITEMS}
+        assert mw.write_drop_catalog(_reader(), str(tmp_path), STAGE_INFO, "1.3.2", inst) == 2
         doc = json.loads((tmp_path / "drop_catalog.json").read_text(encoding="utf-8"))
         assert set(doc["stages"]) == {"1101", "2308"} and doc["gameVersion"] == "1.3.2"
         assert doc["stages"]["1101"]["boss"] == {"boxKey": 920011, "rate": 1.0, "cooldownSec": 120}
@@ -105,20 +102,19 @@ class TestWriteDropCatalog:
     def test_missing_instances_writes_nothing(self, monkeypatch, tmp_path):
         for inst in ({}, {"StageInfoData": STAGES, "ItemInfoData": []},
                      {"StageInfoData": [], "ItemInfoData": ITEMS}):
-            self._inst(monkeypatch, inst)
-            assert mw.write_drop_catalog(_reader(), str(tmp_path), STAGE_INFO, "1.3.2") == 0
+            assert mw.write_drop_catalog(_reader(), str(tmp_path), STAGE_INFO, "1.3.2", inst) == 0
         assert not (tmp_path / "drop_catalog.json").exists()
 
     def test_no_stage_in_stage_info_writes_nothing(self, monkeypatch, tmp_path):
-        self._inst(monkeypatch, {"StageInfoData": STAGES, "ItemInfoData": ITEMS})
-        assert mw.write_drop_catalog(_reader(), str(tmp_path), {}, "1.3.2") == 0
+        inst = {"StageInfoData": STAGES, "ItemInfoData": ITEMS}
+        assert mw.write_drop_catalog(_reader(), str(tmp_path), {}, "1.3.2", inst) == 0
         assert not (tmp_path / "drop_catalog.json").exists()
 
     def test_write_failure_returns_zero(self, monkeypatch, tmp_path):
-        self._inst(monkeypatch, {"StageInfoData": STAGES, "ItemInfoData": ITEMS})
+        inst = {"StageInfoData": STAGES, "ItemInfoData": ITEMS}
         missing_dir = str(tmp_path / "does-not-exist")
-        assert mw.write_drop_catalog(_reader(), missing_dir, STAGE_INFO, "1.3.2") == 0
+        assert mw.write_drop_catalog(_reader(), missing_dir, STAGE_INFO, "1.3.2", inst) == 0
 
     def test_never_raises(self, monkeypatch, tmp_path):
-        self._inst(monkeypatch, {"StageInfoData": STAGES, "ItemInfoData": ITEMS})
-        assert mw.write_drop_catalog(_reader(), str(tmp_path), None, "1.3.2") == 0   # bad stage_info
+        inst = {"StageInfoData": STAGES, "ItemInfoData": ITEMS}
+        assert mw.write_drop_catalog(_reader(), str(tmp_path), None, "1.3.2", inst) == 0   # bad stage_info

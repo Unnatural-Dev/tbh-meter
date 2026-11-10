@@ -8,6 +8,7 @@ import os
 import pytest
 
 import meter_windows as mw
+from game import attach
 from metrics import run_boundary as rbm
 
 A, B = 101, 202
@@ -63,7 +64,11 @@ class World:
 
 
 def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
-    complete = (SC, SF, MSM, LM, [CSD], [0x60], STAGE_INFO, {2: (1, 1, 1)}, {3: 1}, [0x70], None, None, None, None)
+    complete = attach.AttachedState(
+        sc_class=SC, sf_class=SF, msm=MSM, lm=LM, csd_list=[CSD], psd_list=[0x60],
+        stage_info=STAGE_INFO, item_cat={2: (1, 1, 1)}, hero_cat={3: 1}, sm_list=[0x70],
+        gold_klass=None, gb_class=None, die_class=None, res_class=None,
+        catalog_instances={}, tbase=None, idx_ut=None, csd=CSD, sm=None, stage_waves={})
     monkeypatch.setattr(mw, "find_pid", lambda: 1234)
     monkeypatch.setattr(mw, "open_process", lambda pid: 0xDEAD)
     readers = []
@@ -77,14 +82,12 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
     monkeypatch.setattr(mw, "_detect_game_version", lambda h: "1.00.19")
     monkeypatch.setattr(mw.typeinfo, "ga_module", lambda pid: (0x7ff800000000, 0x62ea000))
     monkeypatch.setattr(mw.typeinfo, "build_fingerprint", lambda r, b, version=None: "fp")
-    monkeypatch.setattr(mw, "load_calib", lambda p, fp: None)
 
-    def resolve_all(r, pid, fp, cache):
+    def prepare(r, pid, fp, cache, output_dir, game_version, *, startup):
         if len(readers) > 1:              # a re-attach resolve takes ~90 s of wall clock
             world.t += 90.0
         return complete
-    monkeypatch.setattr(mw, "resolve_all", resolve_all)
-    monkeypatch.setattr(mw, "write_drop_catalog", lambda *a, **k: None)
+    monkeypatch.setattr(attach, "prepare", prepare)
     monkeypatch.setattr(mw, "describe_reader_version", lambda: "test-ver")
     monkeypatch.setattr(mw, "diag", lambda *a, **k: world.diag.append(a[0] if a else ""))
     monkeypatch.setattr(mw, "_emit_status", lambda *a, **k: None)
@@ -95,9 +98,6 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
             world.live[world.tick] = json.loads(text)
         return _real_write(path, text)
     monkeypatch.setattr(mw, "_write_atomic", write_atomic)
-    monkeypatch.setattr(mw.waves, "read_stage_waves", lambda *a, **k: {})
-    monkeypatch.setattr(mw.save, "pick_live_csd", lambda *a, **k: CSD)
-    monkeypatch.setattr(mw.save, "pick_live_sm", lambda *a, **k: None)
     monkeypatch.setattr(mw.save, "pick_live_psd", lambda *a, **k: None)
     monkeypatch.setattr(mw.save, "read_heroes", lambda *a, **k: {})
 

@@ -6,7 +6,7 @@ code_anchors:
   - meter_windows.py::run
   - game/build.py::read_build
   - game/build.py::read_stats_dict
-  - meter_windows.py::_read_catalogs
+  - game/attach.py::_read_catalogs
   - app/src/shared/run-types.ts
 asserts:
   - meter_windows.SCHEMA_VERSION == 11
@@ -68,7 +68,7 @@ the existing labels is making a contract change → bump `SCHEMA_VERSION` + coor
   [[invariants/schema-versioning]]; type/normalize defensively in the app ([[invariants/app-normalization]]).
 - **Going to display the name?** Resolve it in the front via `web/src/data/*.json`; don't ask the reader to send the
   name. The reader, at most, exports the **catalogs** (id→attributes) — that's the planned `--dump-catalogs`,
-  whose raw material already exists in `meter_windows.py` (`_read_catalogs`, which derives stage_info/item_cat/hero_cat)
+  whose raw material already exists in `game/attach.py` (`_read_catalogs`, which derives stage_info/item_cat/hero_cat)
   and in the enums of `config/offsets.py`.
 
 ## Related
