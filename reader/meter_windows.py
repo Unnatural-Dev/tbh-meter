@@ -14,7 +14,8 @@ in ms, no session/counter — Redesign 2; the app's converter turns it into logs
 (RAW snapshot of the current run, overwritten ~1x/s, the app cooks the overlay), meter.log (event log,
 timestamped), resolve_cache.json. The reader is a DUMB SENSOR: it emits raw to both streams; the app
 derives dps/label/format and the SESSION (no cooking here).
-Run: python meter_windows.py [--output DIR] [--hz N] [--debug] (Ctrl+C exits).
+Run: python meter_windows.py [--output DIR] [--hz N] [--debug] [--instance-tag NAME] (Ctrl+C exits).
+--instance-tag is DEV-ONLY (live A/B of two readers); it requires its own --output.
 """
 
 import argparse
@@ -34,7 +35,7 @@ from config.offsets import (List, Array, Class, MonsterSpawnManager, LogManager,
                             EStageType, name_map)
 from shared.memory import Reader, regions, find_pid, open_process, close, process_image_path
 from shared.utils import tee_stdio, resource_path, init_diag_log, diag
-from shared.single_instance import acquire as acquire_single_instance
+from shared.single_instance import acquire as acquire_single_instance, validate_tag
 from shared.envelope import err, ok
 from il2cpp.resolver import resolve, resolve_via_rva, instances_of, SINGLETONS
 from il2cpp import typeinfo
@@ -1721,6 +1722,18 @@ def run(hz, output_dir, debug=False):
 DEFAULT_OUTPUT = os.path.join(os.path.expanduser("~"), "tbh-meter")
 
 
+def _same_dir(a, b):
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+def _instance_tag(value):
+    """argparse `type` for --instance-tag: a bad NAME is a clear usage error, not a traceback."""
+    try:
+        return validate_tag(value)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from e
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hz", type=float, default=10.0)
@@ -1736,7 +1749,16 @@ def main():
                          "view). Off by default: the app reads live.json and the "
                          "reader runs hidden, so this is only useful when you run the "
                          "reader in a terminal yourself to debug.")
+    ap.add_argument("--instance-tag", metavar="NAME", type=_instance_tag, default=None,
+                    help="DEV ONLY: take the single-instance lock under NAME so a second reader "
+                         "(e.g. an old revision) can run beside the first for a live A/B. "
+                         "Needs its own --output.")
     args = ap.parse_args()
+    # Two readers writing the same raw/ folder duplicate every run (see single_instance.py), so a
+    # tagged instance must have its OWN --output (also catches an explicit --output = the default).
+    if args.instance_tag and _same_dir(args.output, DEFAULT_OUTPUT):
+        ap.error("--instance-tag needs an explicit --output that differs from the default "
+                 f"({DEFAULT_OUTPUT}): two readers must not share one raw/ folder")
     if args.selftest:
         # Force the frozen-resource path: xp.curve()/build.skill_attr_map() load their
         # bundled config JSON via shared.utils.resource_path. A broken --add-data /
@@ -1790,7 +1812,7 @@ def main():
     # Single instance: only ONE reader can run. Two processes attach to the same game and
     # duplicate the raw/<id>.json records (duplicate run + 2× gold from the save fallback under
     # contention). The mutex is released by the OS at process exit — no stale-lock. See single_instance.py.
-    if not acquire_single_instance():
+    if not acquire_single_instance(args.instance_tag):
         print("[exit] another tbh-reader is already running — not starting a second one.")
         return
     # mirror stdout/stderr to <output>/meter.log (for Claude to monitor from outside, e.g. the share)
@@ -1798,6 +1820,11 @@ def main():
     # SEPARATE infra log (reader-diag.log): resolution internals + instance selection — the
     # data that was missing in debugs like the 1.00.13 party-off (see shared/utils.diag).
     init_diag_log(os.path.join(output_dir, "reader-diag.log"))
+    if args.instance_tag:
+        print(f"[warn] --instance-tag {args.instance_tag}: DEV A/B only. A concurrent reader "
+              "contends for the same game memory and can knock out the LIVE gold read "
+              "(SAVE fallback = 2x gold). Do not trust this instance's gold; never use it "
+              "beside the app's reader for real runs.")
     try:
         run(args.hz, output_dir, args.debug)
     except Exception as e:

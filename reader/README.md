@@ -23,6 +23,12 @@ end timestamp in ms), a `live.json` snapshot (~1/s), and `meter.log`. The reader
 does not own sessions or `runs.jsonl` (the app derives sessions; the legacy `runs.jsonl` path is
 migration-only). How the data is read and maintained: **`docs/_index.md`** — read it before changing code.
 
+Only one reader runs at a time (a named mutex, `shared/single_instance.py`): two readers on the same
+game duplicate runs and can push gold to the SAVE fallback (2× gold). **Dev-only escape hatch** for a
+live A/B of two revisions: `--instance-tag NAME` (`[A-Za-z0-9_-]{1,32}`) takes the lock as
+`...-NAME` and **requires its own `--output`** (never the default folder). It prints a warning at
+start-up; the tagged instance's gold is not trustworthy while both are attached. Never used by the app.
+
 ## Structure
 
 ```
