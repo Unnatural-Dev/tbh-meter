@@ -56,6 +56,10 @@ guarded_by:
   - tests/test_run_boundary_rules.py::TestReloadRule::test_tolerance_of_two
   - tests/test_run_boundary_rules.py::TestStageAdoption::test_does_not_readopt_at_or_after_grace
   - tests/test_run_boundary_rules.py::TestShouldAbandon::test_abandoned_close_uses_the_old_stage_key
+  - tests/test_run_wiring.py::test_reattach_stamps_start_after_resolve_and_before_new_run_reads
+  - tests/test_run_wiring.py::test_reattach_does_not_leak_interrupted_run_into_next_run
+  - tests/test_run_wiring.py::test_abandoned_record_carries_ledger_mobs_damage_duration_and_old_stage
+  - tests/test_run_wiring.py::test_success_close_emits_ledger_and_live_line_shows_pre_close_values
 ---
 
 # Run lifecycle
