@@ -132,6 +132,46 @@ def test_reattach_gets_startup_gold_recheck_and_diagnostics(world, monkeypatch, 
     assert "[[STATUS]] ready" not in stdout and "[[STATUS]] searching" not in stdout
 
 
+@pytest.mark.parametrize("startup", [True, False])
+@pytest.mark.parametrize("case", ["incomplete", "resolution-error", "carrier-error", "gold-error", "complete"])
+def test_preparation_stdout_matches_supervisor_contract(world, monkeypatch, capsys, case, startup):
+    """The human ready fallback is a success signal, never a resolution-only signal.
+
+    The supervisor integration test consumes this same full stdout fixture; no copy
+    of its private parser is involved. A fixed clock makes elapsed diagnostics stable.
+    """
+    contract = json.loads((Path(__file__).parent / "fixtures" / "attachment-status.json")
+                          .read_text(encoding="utf-8"))
+    reader, _, inst, _, _ = world
+    monkeypatch.setattr(attach.time, "time", lambda: 1000.0)
+    if case == "incomplete":
+        inst["MonsterSpawnManager"] = []
+    elif case == "resolution-error":
+        def fail_resolution(*a, **k):
+            raise RuntimeError("resolution read failed")
+        monkeypatch.setattr(attach, "instances_of", fail_resolution)
+    elif case == "carrier-error":
+        original = reader.ri32
+
+        def read(a):
+            if a == CSD + CommonSaveData.CURRENT_STAGE_KEY:
+                raise RuntimeError("carrier read failed")
+            return original(a)
+        monkeypatch.setattr(reader, "ri32", read)
+    elif case == "gold-error":
+        def fail_gold(*a):
+            raise RuntimeError("gold read failed")
+        monkeypatch.setattr(attach, "combat_gold_klass_ok", fail_gold)
+
+    if case in ("carrier-error", "gold-error") or (case == "resolution-error" and startup):
+        with pytest.raises(RuntimeError, match="read failed"):
+            prepare(world, startup=startup)
+    else:
+        state = prepare(world, startup=startup)
+        assert (state is not None) == (case == "complete")
+    assert capsys.readouterr().out == contract[case]["stdout"]
+
+
 def test_two_prepares_keep_their_own_catalog_instances(world):
     first = prepare(world)
     world[2]["StageInfoData"] = []

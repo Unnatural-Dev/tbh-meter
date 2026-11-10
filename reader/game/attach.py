@@ -593,9 +593,7 @@ def prepare(reader, pid, fp, cache_path, output_dir, game_version, *, startup):
     stage_info, item_cat, hero_cat = resolved.stage_info, resolved.item_cat, resolved.hero_cat
     csd_list, psd_list, sm_list = resolved.csd_list, resolved.psd_list, resolved.sm_list
     gold_klass = resolved.gold_klass
-    print(f"[ok] resolved in {time.time()-t0:.0f}s. stages={len(stage_info)} "
-          f"items-catalog={len(item_cat)} heroes-catalog={len(hero_cat)} "
-          f"PSD={len(psd_list)} CSD={len(csd_list)}.\n")
+
     diag(f"[resolve] fp={fp} SM={len(sm_list)} PSD={len(psd_list)} CSD={len(csd_list)} "
          f"gold={'ok' if gold_klass else 'None'} stages={len(stage_info)} "
          f"items={len(item_cat)} heroes={len(hero_cat)}")
@@ -653,5 +651,10 @@ def prepare(reader, pid, fp, cache_path, output_dir, game_version, *, startup):
     write_drop_catalog(reader, output_dir, stage_info, game_version, resolved.catalog_instances)
     # Per-stage (WaveAmount, WaveMonsterAmount) for the Brevity-corrected mob total (game.waves).
     stage_waves = waves.read_stage_waves(reader, resolved.catalog_instances.get("StageInfoData"))
-    return AttachedState(**{**vars(resolved), "gold_klass": gold_klass},
-                         tbase=tbase, idx_ut=idx_ut, csd=csd, sm=sm, stage_waves=stage_waves)
+    attached = AttachedState(**{**vars(resolved), "gold_klass": gold_klass},
+                             tbase=tbase, idx_ut=idx_ut, csd=csd, sm=sm, stage_waves=stage_waves)
+    # The app treats this human fallback as ready: emit only after ALL preparation succeeds.
+    print(f"[ok] resolved in {time.time()-t0:.0f}s. stages={len(stage_info)} "
+          f"items-catalog={len(item_cat)} heroes-catalog={len(hero_cat)} "
+          f"PSD={len(psd_list)} CSD={len(csd_list)}.\n")
+    return attached
