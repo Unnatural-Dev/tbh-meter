@@ -1,0 +1,258 @@
+"""Wiring of RunBoundary into meter_windows.run(): drives meter_windows.run() with a fake Reader + scripted clock and asserts on the
+EMITTED raw/*.json record, the live.json lines and the RunBoundary call order at re-attach.
+hz=1 => one loop tick == 1 s of fake time."""
+import glob
+import json
+import os
+
+import pytest
+
+import meter_windows as mw
+from metrics import run_boundary as rbm
+
+A, B = 101, 202
+STAGE_INFO = {A: (1, 1, 5, 0), B: (1, 2, 5, 0)}   # (act, stage, ?, diff)
+SC, SF, MSM, LM, CSD = 0x10, 0x20, 0x3000, 0x4000, 0x5000   # distinct address ranges
+
+
+class FakeReader:
+    """A tiny scripted memory: log list, dead-monster counter; everything else unreadable (None)."""
+    def __init__(self, world, dies_at=None):
+        self.world, self.dies_at = world, dies_at
+
+    def rptr(self, a):
+        w = self.world
+        if a == LM + mw.LogManager.LOG_LIST:
+            dead = self.dies_at is not None and w.tick >= self.dies_at
+            return None if dead else 0x1000
+        if a == 0x1000 + mw.List.ITEMS:
+            return 0x1100
+        if 0x1100 + mw.Array.DATA <= a < 0x1100 + mw.Array.DATA + 8 * 64:
+            return 0x9000 + (a - 0x1100 - mw.Array.DATA) // 8 * 0x100     # log entry object pointer
+        if a >= 0x9000 and (a - 0x9000) % 0x100 == 0:
+            return SC                                                       # every entry is a StageClearLog
+        if a == MSM + mw.MonsterSpawnManager.DEAD_MONSTER_LIST:
+            return 0x2000
+        return None
+
+    def ri32(self, a):
+        w = self.world
+        if a == 0x1000 + mw.List.SIZE:
+            return w.last_log
+        if a == 0x2000 + mw.List.SIZE:
+            return w.script.get(w.tick, {}).get("dead")
+        if a >= 0x9000 and (a - 0x9000) % 0x100 == mw.StageClearLog.CLEAR_TIME:
+            return 5
+        return None
+
+    def __getattr__(self, name):          # any other read primitive -> unreadable
+        return lambda *a, **k: None
+
+
+class World:
+    def __init__(self):
+        self.t = 1000.0
+        self.tick = 0
+        self.events = []          # ordered log of RunBoundary calls + new_run reads
+        self.script = {}          # tick -> dict(key=, snap=, dead=, log=)
+        self.stop_after = 10
+        self.last_log = 0
+        self.live = {}            # tick -> live.json record
+        self.diag = []            # diag() lines (run-close summary incl. partial=)
+        self.die_at = None        # tick at which the FIRST reader starts failing (None = never)
+
+
+def _drive(monkeypatch, tmp_path, world, hz=1):
+    complete = (SC, SF, MSM, LM, [CSD], [0x60], STAGE_INFO, {2: (1, 1, 1)}, {3: 1}, [0x70], None, None, None, None)
+    monkeypatch.setattr(mw, "find_pid", lambda: 1234)
+    monkeypatch.setattr(mw, "open_process", lambda pid: 0xDEAD)
+    readers = []
+
+    def make_reader(handle):
+        r = FakeReader(world, dies_at=world.die_at if not readers else None)   # only the 1st reader dies
+        readers.append(r)
+        return r
+    monkeypatch.setattr(mw, "Reader", make_reader)
+    monkeypatch.setattr(mw, "close", lambda h: None)
+    monkeypatch.setattr(mw, "_detect_game_version", lambda h: "1.00.19")
+    monkeypatch.setattr(mw.typeinfo, "ga_module", lambda pid: (0x7ff800000000, 0x62ea000))
+    monkeypatch.setattr(mw.typeinfo, "build_fingerprint", lambda r, b, version=None: "fp")
+    monkeypatch.setattr(mw, "load_calib", lambda p, fp: None)
+
+    def resolve_all(r, pid, fp, cache):
+        if len(readers) > 1:              # a re-attach resolve takes ~90 s of wall clock
+            world.t += 90.0
+        return complete
+    monkeypatch.setattr(mw, "resolve_all", resolve_all)
+    monkeypatch.setattr(mw, "write_drop_catalog", lambda *a, **k: None)
+    monkeypatch.setattr(mw, "diag", lambda *a, **k: world.diag.append(a[0] if a else ""))
+    monkeypatch.setattr(mw, "_emit_status", lambda *a, **k: None)
+    _real_write = mw._write_atomic
+
+    def write_atomic(path, text):
+        if os.path.basename(path) == "live.json":
+            world.live[world.tick] = json.loads(text)
+        return _real_write(path, text)
+    monkeypatch.setattr(mw, "_write_atomic", write_atomic)
+    monkeypatch.setattr(mw.waves, "read_stage_waves", lambda *a, **k: {})
+    monkeypatch.setattr(mw.save, "pick_live_csd", lambda *a, **k: CSD)
+    monkeypatch.setattr(mw.save, "pick_live_sm", lambda *a, **k: None)
+    monkeypatch.setattr(mw.save, "pick_live_psd", lambda *a, **k: None)
+    monkeypatch.setattr(mw.save, "read_heroes", lambda *a, **k: {})
+
+    def read_gold(reader, p):
+        world.events.append(("new_run.read_gold", world.t))
+        return 0
+    monkeypatch.setattr(mw.save, "read_gold", read_gold)
+    monkeypatch.setattr(mw, "read_live_stage_key", lambda reader, msm: world.script.get(world.tick, {}).get("key"))
+    monkeypatch.setattr(mw, "read_live_monsters", lambda reader, msm: world.script.get(world.tick, {}).get("snap", []))
+
+    class Spy(rbm.RunBoundary):
+        def __init__(self, now):
+            world.events.append(("init", now))
+            super().__init__(now)
+
+        def restart(self, now):
+            world.events.append(("restart", now))
+            super().restart(now)
+
+        def close(self, now):
+            world.events.append(("close", now))
+            return super().close(now)
+    monkeypatch.setattr(mw, "RunBoundary", Spy)
+    monkeypatch.setattr(mw.time, "time", lambda: world.t)
+
+    def sleep(s):
+        world.t += s
+        world.last_log = world.script.get(world.tick + 1, {}).get("log", world.last_log)   # visible next tick
+        world.tick += 1
+        if world.tick >= world.stop_after:
+            raise KeyboardInterrupt
+    monkeypatch.setattr(mw.time, "sleep", sleep)
+    mw.run(hz=hz, output_dir=str(tmp_path), debug=False)
+    return readers
+
+
+def _records(tmp_path):
+    return [json.load(open(p, encoding="utf-8")) for p in sorted(glob.glob(str(tmp_path / "raw" / "*.json")))]
+
+
+def _mob(addr, hp=100.0):
+    return (addr, hp, 100.0)
+
+
+def _val(env):
+    return env["value"] if isinstance(env, dict) else env
+
+
+def test_abandoned_record_carries_ledger_mobs_damage_duration_and_old_stage(monkeypatch, tmp_path):
+    """stage A adopted, 3 mobs die (one takes 40 dmg first), stage switches to B => 'abandoned' record on A."""
+    w = World()
+    w.stop_after = 8
+    w.script = {
+        0: dict(key=A, snap=[_mob(1), _mob(2), _mob(3)]),
+        1: dict(key=A, snap=[_mob(1), _mob(2), _mob(3, 60.0)]),
+        2: dict(key=A, snap=[_mob(3, 60.0)]),
+        3: dict(key=A, snap=[]),
+        4: dict(key=A), 5: dict(key=A),
+        6: dict(key=B), 7: dict(key=B),
+    }
+    _drive(monkeypatch, tmp_path, w)
+    recs = _records(tmp_path)
+    assert len(recs) == 1, w.events
+    r = recs[0]
+    assert r["run_outcome"] == "abandoned"
+    assert _val(r["mobs"]) == 3
+    assert _val(r["total_damage"]) == pytest.approx(40 + 100 + 100 + 60)   # drop 40 + finishing blows 100,100,60
+    assert _val(r["stageKey"]) == A                       # closed with the OLD stage
+    assert r["duration"] == pytest.approx(6.0, abs=0.01)                   # t=1000 -> 1006
+
+
+def test_success_close_emits_ledger_and_live_line_shows_pre_close_values(monkeypatch, tmp_path, capsys):
+    w = World()
+    w.stop_after = 10
+    w.script = {
+        0: dict(key=A, snap=[_mob(1), _mob(2)]),
+        1: dict(key=A, snap=[_mob(1, 50.0), _mob(2)]),
+        2: dict(key=A, snap=[_mob(2)]),
+        3: dict(key=A, snap=[]),
+        4: dict(key=A), 5: dict(key=A),
+        6: dict(key=A, log=1),
+    }
+    _drive(monkeypatch, tmp_path, w)
+    out = capsys.readouterr().out
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == ["success"], w.events
+    r = recs[0]
+    assert _val(r["mobs"]) == 2
+    expected_damage = 50 + 50 + 100                  # drop 50, finishing blows 50 and 100
+    assert _val(r["total_damage"]) == pytest.approx(expected_damage)
+    assert "mobs 2/" in out                          # console summary
+    assert any("partial=False" in d for d in w.diag), w.diag      # _is_partial fed the closed damage
+    assert w.live[5]["mobs"] == 2 and w.live[5]["elapsed"] == 5 and w.live[5]["damage_now"] == expected_damage
+    # on the close tick the live line still shows the run that just ended: damage captured BEFORE the close
+    assert w.live[6]["damage_now"] == expected_damage, w.live[6]
+    assert w.live[6]["mobs"] == 0 and w.live[7]["elapsed"] <= 1       # new ledger afterwards
+
+
+def test_reload_drop_in_dead_count_abandons_same_stage(monkeypatch, tmp_path):
+    w = World()
+    w.stop_after = 9
+    w.script = {t: dict(key=A, snap=[_mob(1)], dead=50) for t in range(9)}
+    w.script[6] = dict(key=A, snap=[_mob(1)], dead=10)        # manual restart: counter drops by > 2, past the grace
+    _drive(monkeypatch, tmp_path, w)
+    assert [r["run_outcome"] for r in _records(tmp_path)] == ["abandoned"]
+def test_uncatalogued_live_key_is_not_adopted(monkeypatch, tmp_path):
+    w = World()
+    w.stop_after = 10
+    w.script = {t: dict(key=999) for t in range(5)}            # not in stage_info for longer than the grace
+    w.script.update({t: dict(key=A) for t in range(5, 10)})
+    _drive(monkeypatch, tmp_path, w)
+    assert _records(tmp_path) == []                            # no bogus adoption => no bogus abandon
+
+
+def test_switch_to_uncatalogued_key_does_not_abandon(monkeypatch, tmp_path):
+    w = World()
+    w.stop_after = 10
+    w.script = {t: dict(key=A) for t in range(5)}
+    w.script.update({t: dict(key=999) for t in range(5, 10)})
+    _drive(monkeypatch, tmp_path, w)
+    assert _records(tmp_path) == []
+def test_reattach_stamps_start_after_resolve_and_before_new_run_reads(monkeypatch, tmp_path):
+    """At re-attach rb.restart(now) runs AFTER resolve (fresh clock) and BEFORE new_run()'s reads."""
+    w = World()
+    w.die_at = 1
+    w.stop_after = 8
+    _drive(monkeypatch, tmp_path, w)
+    kinds = [e[0] for e in w.events]
+    assert kinds[0] == "init", w.events                                    # stamped before start-up new_run
+    assert "restart" in kinds, w.events
+    i = kinds.index("restart")
+    assert kinds[i - 1] == "new_run.read_gold" and i == 2, w.events        # exactly one start-up new_run read before it
+    assert kinds[i + 1] == "new_run.read_gold", w.events                   # re-attach new_run right after
+    assert w.events[i][1] == 1005.0 + 90.0, w.events                       # re-attach tick + 90 s resolve
+
+
+def test_reattach_does_not_leak_interrupted_run_into_next_run(monkeypatch, tmp_path):
+    """Interrupted run on A had kills + an adopted stage; after re-attach into stage B nothing may be emitted
+    and the next run starts clean."""
+    w = World()
+    w.die_at = 3
+    w.stop_after = 12
+    w.script = {0: dict(key=A, snap=[_mob(1), _mob(2), _mob(3)]),
+                1: dict(key=A, snap=[_mob(3)]), 2: dict(key=A, snap=[])}
+    w.script.update({t: dict(key=A, snap=[]) for t in range(3, 8)})   # still A while the reads fail (ticks 3-7)
+    w.script.update({t: dict(key=B, snap=[]) for t in range(8, 12)})   # game is back, now on stage B
+    _drive(monkeypatch, tmp_path, w)
+    assert _records(tmp_path) == [], _records(tmp_path)
+    assert w.live[11]["mobs"] == 0 and w.live[11]["elapsed"] < 10, w.live[11]
+
+
+def test_reattach_with_lower_dead_count_is_not_a_reload(monkeypatch, tmp_path):
+    w = World()
+    w.die_at = 3
+    w.stop_after = 12
+    w.script = {t: dict(key=A, dead=50) for t in range(8)}              # reads fail on ticks 3-7 -> re-attach at tick 7
+    w.script.update({t: dict(key=A, dead=10) for t in range(8, 12)})    # new instance's counter is lower
+    _drive(monkeypatch, tmp_path, w)
+    assert _records(tmp_path) == []

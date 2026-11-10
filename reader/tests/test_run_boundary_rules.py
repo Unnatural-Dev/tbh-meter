@@ -24,6 +24,12 @@ class TestStageAdoption:
         rb.observe_stage(A, True, 10.0)          # long past the grace: still adopted while None
         assert rb.stage_key == A
 
+    def test_missing_key_does_not_clobber_the_adopted_stage_inside_grace(self):
+        rb = RunBoundary(now=0.0)
+        rb.observe_stage(A, True, 0.1)
+        rb.observe_stage(None, True, 0.5)        # failed stage-key read
+        assert rb.stage_key == A
+
     def test_key_outside_catalog_or_none_is_not_adopted(self):
         rb = RunBoundary(now=0.0)
         rb.observe_stage(A, False, 0.1)
@@ -135,6 +141,11 @@ class TestShouldAbandon:
         rb.observe_dead_count(0)
         assert rb.should_abandon(A, True, 3.0) is True   # `now >= adopt_until`
 
+    def test_fresh_boundary_is_not_a_reload_before_any_dead_read(self):
+        rb = RunBoundary(now=0.0)
+        rb.observe_stage(A, True, 0.1)
+        assert rb.should_abandon(A, True, 5.0) is False
+
     def test_nothing_to_abandon_without_an_adopted_stage(self):
         rb = RunBoundary(now=0.0)
         rb.observe_dead_count(10)
@@ -200,6 +211,16 @@ class TestLedger:
         assert rb.dps(1.0) > 0
         assert rb.peak_dps >= rb.dps(1.0)
         assert rb.alive == 1
+
+    def test_dps_uses_the_tick_time_and_leaves_the_window(self):
+        rb = RunBoundary(now=0.0)
+        rb.observe_monsters([_mob(1, 100.0)], 0.0)
+        rb.observe_monsters([_mob(1, 50.0)], 1.0)    # 50 damage at t=1.0, 5 s window => 10 dps
+        assert rb.dps(1.0) == pytest.approx(10.0)
+        assert rb.peak_dps == pytest.approx(10.0)
+        assert rb.dps(6.0) == pytest.approx(10.0)    # sample is stamped at the tick time
+        assert rb.dps(6.01) == 0.0
+        assert rb.peak_dps == pytest.approx(10.0)    # peak survives the window
 
     def test_restart_discards_the_run_without_touching_the_dead_baseline(self):
         rb = RunBoundary(now=0.0)
