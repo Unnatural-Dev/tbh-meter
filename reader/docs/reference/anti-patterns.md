@@ -29,6 +29,7 @@ the "this smells bad" trigger.)
 | `partial = total_damage == 0` (instead of `<= 0`) | reopens #163 (x-10 recorded with all-zeros) | [[invariants/run-lifecycle]] |
 | skip by `EStageType.ACTBOSS` instead of `stage != 10` (StageNo) | different signals → discards a legit x-10 | [[invariants/run-lifecycle]] |
 | new run field set only in `close_run` (not in `new_run`) | leaks the previous run's value | [[invariants/run-lifecycle]] |
+| a changed `RunBoundary` call in `meter_windows.run()` (start-up, re-attach, tick feed, close) with no `tests/test_run_wiring.py` case | only that harness reaches `run()` past the resolve guard; without it all 34 wiring mutants passed the suite | [[invariants/run-lifecycle]] |
 | reading the Unit's 12 core stats at runtime (`CORE_STATS_OBSCURED`) | ObscuredFloat (XOR) → garbage; use FLAT `FINAL_STATS` | [[invariants/obscured-data-offlimits]] |
 | `EHeroType` for hero class identity | orphan enum; use `EEquipClassType` | [[invariants/obscured-data-offlimits]] |
 | `ELogType` read as a field of the log entry | it was stripped from IL2CPP; detect by klass-pointer | [[invariants/log-event-detection]] |
