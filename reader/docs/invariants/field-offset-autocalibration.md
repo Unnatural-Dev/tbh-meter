@@ -1,6 +1,6 @@
 ---
 type: invariant
-description: "The four FRAGILE field offsets (Monster.STAGE_KEY, UnitHealthController.HP_MAX, StageManager.HERO_LIST, Unit.CACHE) are AUTO-CALIBRATED live at attach by semantic signature, because the fields are obfuscated (random names per build) and shift on almost every recompile. The static values in config/offsets.py are the FALLBACK, kept when a signature can't be found live. This is why those offsets no longer need a hand-patch every game update."
+description: "The four FRAGILE field offsets (Monster.STAGE_KEY, UnitHealthController.HP_MAX, StageManager.HERO_LIST, Unit.CACHE) are AUTO-CALIBRATED live at attach by semantic signature, because the fields are obfuscated (random names per build) and shift on almost every recompile. Current in-memory values are the per-field FALLBACK, including prior discoveries; any calibration exception restores all four entry values. This is why those offsets no longer need a hand-patch every game update."
 symptoms:
   - "stageKey unread post-update"
   - "stage unresolved after a new version"
@@ -20,6 +20,12 @@ code_anchors:
   - config/offsets.py::Unit.CACHE
   - config/offsets.py::FieldCalibWindows
 guarded_by:
+  - tests/test_field_calib.py::test_calibrate_exception_restores_entry_state
+  - tests/test_field_calib.py::test_calibrate_preserves_per_field_fallback
+  - tests/test_field_calib.py::test_calibrate_learned_values_remain_static_first
+  - tests/test_attach.py::test_prepare_field_calibration_error_retains_previous_values
+  - tests/test_attach.py::test_incomplete_prepare_retry_keeps_calibration_lifetime
+  - tests/test_attach.py::test_prepare_diagnostic_handler_failure_still_leaves_offsets_restored
   - tests/test_field_calib.py::test_discover_stage_key_by_catalog
   - tests/test_field_calib.py::test_discover_hp_max_ge_current
   - tests/test_field_calib.py::test_discover_hero_list_and_cache
@@ -90,10 +96,19 @@ non-static offset as described above.
 
 ## Invariants (do not break these)
 
-1. **Static offsets stay as the FALLBACK.** A signature not found live (e.g. the game is not in combat)
-   keeps the static value — auto-calibration NEVER makes a working build worse. `config/offsets.py`
-   remains the single source of truth for the baseline and must still be hand-updated when a live
-   recalibration is done (it seeds the scan windows and the fallback).
+1. **Entry values stay as the per-field FALLBACK.** A missing signature keeps that field's current
+   in-memory value; discoveries in other fields may still apply. Hero-list/cache are discovered
+   together. The initial values come from `config/offsets.py`, but successful discoveries survive
+   later attachments, including a changed fingerprint. Static-first means these current values,
+   not immutable disk defaults. The legacy per-field `kept static` message refers to this mutable
+   fallback. Scan windows remain fixed; calibration does not recenter them.
+   **Exception rollback:** discover all candidates before application. Any exception during waiting,
+   discovery, application or final diagnostics restores all four entry values and propagates.
+   The attachment wrapper reports `previous values retained`; if its error diagnostic also fails,
+   offsets have already been restored (startup propagates; reattachment retries resolution).
+   A successful calibration during incomplete preparation still carries over to its retry;
+   preparation rejection is not itself a calibration exception. This is exception safety, not
+   concurrent publication or evidence that stale learned values are correct for another build.
 2. **Read-only.** Discovery writes nothing to the game and nothing to disk; it only mutates the offset
    classes in memory for the running process.
 3. **Scan windows are generous on purpose.** Each `FieldCalibWindows` range (in `config/offsets.py`,

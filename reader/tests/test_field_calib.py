@@ -91,6 +91,146 @@ def _msm_with_monsters(r, monster_addrs, msm=0x1000, mlist=0x2000, items=0x3000)
     return msm
 
 
+def _calibration_world():
+    r = ByteReader()
+    msm = _msm_with_monsters(r, [0x10000, 0x20000])
+    for i, m in enumerate((0x10000, 0x20000)):
+        r.wi32(m + 0x444, 3301)
+        _hp(r, m, 0x50000 + i * 0x1000, 500.0, {0x58: 900.0})
+    _sm_with_party(r, 0x4000, 0x58, 0x3A0, [401, 301])
+    return r, msm, [0x4000]
+
+
+def _offset_state():
+    return (Monster.STAGE_KEY, UnitHealthController.HP_MAX, StageManager.HERO_LIST, Unit.CACHE)
+
+
+@pytest.mark.parametrize("fault", [
+    "wait", "wait-log", "stage", "hp", "hero", "apply-stage", "apply-hp",
+    "apply-hero", "apply-cache", "final-log",
+])
+def test_calibrate_exception_restores_entry_state(monkeypatch, fault):
+    """Any failed transaction, including a diagnostic failure, leaves no mixed offsets."""
+    from config.offsets import List
+
+    # Non-default prior attachment values must survive, not reset to disk defaults.
+    for cls, name, value in ((Monster, "STAGE_KEY", 0x448),
+                             (UnitHealthController, "HP_MAX", 0x5C),
+                             (StageManager, "HERO_LIST", 0x70), (Unit, "CACHE", 0x3B0)):
+        monkeypatch.setattr(cls, name, value)
+    before = _offset_state()
+    r, msm, sms = _calibration_world()
+    error = RuntimeError(f"injected {fault}")
+
+    def fail(*args, **kwargs):
+        raise error
+
+    def sleep(_):
+        pass
+
+    def log(message):
+        pass
+    if fault in ("wait", "wait-log"):
+        r.wi32(0x2000 + List.SIZE, 0)
+        if fault == "wait":
+            sleep = fail
+        else:
+            log = fail
+    elif fault in ("stage", "hp"):
+        original = r.list_ptrs
+        reads = 0
+
+        def list_ptrs(*args, **kwargs):
+            nonlocal reads
+            reads += 1
+            if reads == (1 if fault == "stage" else 2):
+                raise error
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(r, "list_ptrs", list_ptrs)
+    elif fault == "hero":
+        original = r.read_array_ptrs
+
+        def array_ptrs(addr, n):
+            if addr == 0x60000:
+                raise error
+            return original(addr, n)
+
+        monkeypatch.setattr(r, "read_array_ptrs", array_ptrs)
+    elif fault.startswith("apply-"):
+        cls, name = {"apply-stage": (Monster, "STAGE_KEY"),
+                     "apply-hp": (UnitHealthController, "HP_MAX"),
+                     "apply-hero": (StageManager, "HERO_LIST"),
+                     "apply-cache": (Unit, "CACHE")}[fault]
+
+        class FailOnceOnWrite:
+            armed = True
+
+            def __getattr__(self, key):
+                return getattr(cls, key)
+
+            def __setattr__(self, key, value):
+                setattr(cls, key, value)
+                if key == name and self.armed:
+                    object.__setattr__(self, "armed", False)
+                    raise error
+
+        monkeypatch.setattr(field_calib, cls.__name__, FailOnceOnWrite())
+    else:
+        # Fail on the last changed-field diagnostic, after all four writes.
+        def log(message):
+            if "Unit.CACHE:" in message:
+                raise error
+
+    with pytest.raises(RuntimeError) as caught:
+        field_calib.calibrate(r, msm, sms, STAGE_INFO, HERO_CAT, log=log, sleep=sleep)
+    assert caught.value is error
+    assert _offset_state() == before
+
+
+@pytest.mark.parametrize("stage,hp,hero", [
+    (False, False, False), (True, False, False), (False, True, False),
+    (False, False, True), (True, True, False), (True, False, True),
+    (False, True, True), (True, True, True),
+])
+def test_calibrate_preserves_per_field_fallback(monkeypatch, stage, hp, hero):
+    """Independent missing signatures retain learned entry values; hero/cache move as a pair."""
+    for cls, name, value in ((Monster, "STAGE_KEY", 0x448),
+                             (UnitHealthController, "HP_MAX", 0x5C),
+                             (StageManager, "HERO_LIST", 0x70), (Unit, "CACHE", 0x3B0)):
+        monkeypatch.setattr(cls, name, value)
+    r, msm, sms = _calibration_world()
+    if not hp:
+        for hc in (0x50000, 0x51000):
+            r.wf32(hc + 0x58, 0)
+    report = field_calib.calibrate(r, msm, sms if hero else [], STAGE_INFO if stage else {}, HERO_CAT)
+    assert _offset_state() == (0x444 if stage else 0x448, 0x58 if hp else 0x5C,
+                               0x58 if hero else 0x70, 0x3A0 if hero else 0x3B0)
+    assert report == {
+        "Monster.STAGE_KEY": (0x448, 0x444 if stage else None, "found" if stage else "fallback"),
+        "UnitHealthController.HP_MAX": (0x5C, 0x58 if hp else None, "found" if hp else "fallback"),
+        "StageManager.HERO_LIST": (0x70, 0x58 if hero else None, "found" if hero else "fallback"),
+        "Unit.CACHE": (0x3B0, 0x3A0 if hero else None, "found" if hero else "fallback"),
+    }
+
+
+def test_calibrate_learned_values_remain_static_first():
+    disk = _offset_state()
+    r, msm, sms = _calibration_world()
+    field_calib.calibrate(r, msm, sms, STAGE_INFO, HERO_CAT)
+    assert _offset_state() == (0x444, 0x58, 0x58, 0x3A0)
+    # Disk defaults also qualify, but current learned values still win all signatures.
+    for i, m in enumerate((0x10000, 0x20000)):
+        r.wi32(m + disk[0], 3301)
+        r.wf32(0x50000 + i * 0x1000 + disk[1], 950.0)
+    _sm_with_party(r, 0x5000, disk[2], disk[3], [101, 201], hl=0x90000, base=0xA0000)
+    field_calib.calibrate(r, msm, [0x5000, *sms], STAGE_INFO, HERO_CAT)
+    assert _offset_state() == (0x444, 0x58, 0x58, 0x3A0)
+    report = field_calib.calibrate(ByteReader(), 0, [], {}, {})
+    assert _offset_state() == (0x444, 0x58, 0x58, 0x3A0)
+    assert all(status == "fallback" for _, _, status in report.values())
+
+
 def test_discover_stage_key_by_catalog():
     """STAGE_KEY found at a non-default offset because its value is a catalog key."""
     r = ByteReader()

@@ -338,6 +338,101 @@ def test_successful_scan_calibration_announces_fast_path(world, monkeypatch, cap
     assert "fast path armed" in capsys.readouterr().out
 
 
+def _field_state():
+    return (Monster.STAGE_KEY, UnitHealthController.HP_MAX, StageManager.HERO_LIST, Unit.CACHE)
+
+
+def _moved_field_memory(world, monkeypatch):
+    from config.offsets import MonsterSpawnManager
+
+    reader = world[0]
+    ml, monster, hc = 0x110000, 0x120000, 0x130000
+    reader._mem.update({MSM + MonsterSpawnManager.MONSTER_LIST: ml, ml + List.SIZE: 1,
+                        monster + 0x444: 1001, monster + Unit.HEALTH_CONTROLLER: hc,
+                        hc + UnitHealthController.HP_CURRENT: 500.0, hc + 0x58: 900.0})
+    reader._lists[ml] = [monster]
+    monkeypatch.setattr(reader, "list_ptrs", lambda ptr, cap=600: list(reader.list_iter(ptr, cap)))
+    monkeypatch.setattr(reader, "read_struct",
+                        lambda addr, fmt: (reader._mem.get(addr, 0),), raising=False)
+    reader._mem[SM + 0x58] = reader._mem.pop(SM + StageManager.HERO_LIST)
+    reader._mem[0x420000 + 0x3A0] = reader._mem.pop(0x420000 + Unit.CACHE)
+
+
+@pytest.mark.parametrize("path", ["fast", "scan"])
+@pytest.mark.parametrize("startup", [True, False])
+def test_prepare_field_calibration_error_retains_previous_values(world, monkeypatch, path, startup):
+    """Real prepare -> resolution -> wrapper -> calibration must undo a late logging failure."""
+    _moved_field_memory(world, monkeypatch)
+    if path == "scan":
+        Path(scan_world(world, monkeypatch)).unlink()
+    before = _field_state()
+    lines = []
+
+    def diag(message):
+        lines.append(message)
+        if message.startswith("[field-calib] Unit.CACHE:"):
+            raise RuntimeError("final field diagnostic failed")
+
+    monkeypatch.setattr(attach, "diag", diag)
+    state = prepare(world, startup=startup)
+    assert isinstance(state, attach.AttachedState)
+    assert _field_state() == before
+    assert any("previous values retained" in line and "final field diagnostic failed" in line
+               for line in lines)
+    assert not any("static offsets kept" in line for line in lines)
+
+
+@pytest.mark.parametrize("changed_fp", [False, True])
+@pytest.mark.parametrize("calibration_fails", [False, True])
+def test_incomplete_prepare_retry_keeps_calibration_lifetime(world, monkeypatch,
+                                                            changed_fp, calibration_fails):
+    """Incomplete preparation is not a new offset lifetime, even across fingerprints."""
+    _moved_field_memory(world, monkeypatch)
+    Path(scan_world(world, monkeypatch)).unlink()
+    before = _field_state()
+    classes = world[1]
+    logs = classes["StageClearLog"]
+    classes["StageClearLog"] = set()
+    lines = []
+
+    def diag(message):
+        lines.append(message)
+        if calibration_fails and message.startswith("[field-calib] Unit.CACHE:"):
+            raise RuntimeError("calibration diagnostic failed")
+
+    monkeypatch.setattr(attach, "diag", diag)
+    assert prepare(world) is None
+    expected = before if calibration_fails else (0x444, 0x58, 0x58, 0x3A0)
+    assert _field_state() == expected
+    assert any(line.startswith("[field-calib]") for line in lines)
+    classes["StageClearLog"] = logs
+    # A later no-signal attachment keeps the prior successful transaction (or rolled-back entry).
+    world[0]._mem.clear()
+    world[0]._mem[List.SIZE] = 0
+    world[0]._lists.clear()
+    state = prepare(world, startup=False, fp="different-build" if changed_fp else FP)
+    assert isinstance(state, attach.AttachedState)
+    assert _field_state() == expected
+
+
+@pytest.mark.parametrize("startup", [True, False])
+def test_prepare_diagnostic_handler_failure_still_leaves_offsets_restored(world, monkeypatch, startup):
+    _moved_field_memory(world, monkeypatch)
+    before = _field_state()
+
+    def diag(message):
+        if message.startswith("[field-calib]"):
+            raise RuntimeError("diagnostic sink unavailable")
+
+    monkeypatch.setattr(attach, "diag", diag)
+    if startup:
+        with pytest.raises(RuntimeError, match="diagnostic sink unavailable"):
+            prepare(world)
+    else:
+        assert prepare(world, startup=False) is None
+    assert _field_state() == before
+
+
 def test_scan_without_fingerprint_skips_calibration_silently(world, monkeypatch, capsys):
     scan_world(world, monkeypatch)
     monkeypatch.setattr(attach.typeinfo, "discover_anchor", lambda *a: pytest.fail("calibrated without fp"))

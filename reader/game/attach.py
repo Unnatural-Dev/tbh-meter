@@ -556,16 +556,16 @@ def _resolve_all(reader, pid, fp, cache_path, ga_base):
 def _autocalibrate_fields(reader, resolved, fp):
     """Auto-discover the four FRAGILE field offsets (Monster.STAGE_KEY, UnitHealthController.HP_MAX,
     StageManager.HERO_LIST, Unit.CACHE) by semantic signature and apply them in-memory over the static
-    offsets, which stay as the fallback. Runs after BOTH resolve paths so the offsets are correct
-    before any reading. Read-only; nothing is written to the game or disk. A signature not found live
-    (e.g. not in combat) simply keeps the static offset — never makes a working build worse."""
+    offsets, whose current values stay as the fallback (including earlier attachments' discoveries).
+    Runs after BOTH resolve paths, before carrier reads. Read-only; nothing is written to the game
+    or disk. Missing signatures retain previous values; calibration errors roll back to entry state."""
     try:
         from game import field_calib
         field_calib.calibrate(reader, resolved.msm, resolved.sm_list,
                               resolved.stage_info, resolved.hero_cat,
                               log=lambda m: (print(m), diag(m)))
     except Exception as e:
-        diag(f"[field-calib] skipped (error: {e}) — static offsets kept")
+        diag(f"[field-calib] skipped (error: {e}) — previous values retained")
 
 
 def prepare(reader, pid, fp, cache_path, output_dir, game_version, *, startup):
