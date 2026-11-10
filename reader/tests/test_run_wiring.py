@@ -314,3 +314,19 @@ def test_flag_on_but_ordinary_run_leaves_no_anomalies_dir(monkeypatch, tmp_path)
     _drive(monkeypatch, tmp_path, w, anomaly_dump=True)
     assert [r["run_outcome"] for r in _records(tmp_path)] == ["success"]
     assert not (tmp_path / "anomalies").exists()
+
+def test_incomplete_startup_attachment_reverts_splash_to_searching(monkeypatch, tmp_path, capsys):
+    """Incomplete startup preparation must leave the app splash on the deadline-protected
+    `searching` marker, never stranded on `resolving`/`scanning`, and never reach `ready`."""
+    monkeypatch.setattr(mw, "find_pid", lambda: 1234)
+    monkeypatch.setattr(mw, "open_process", lambda pid: 0xDEAD)
+    monkeypatch.setattr(mw, "Reader", lambda handle: object())
+    monkeypatch.setattr(mw, "_detect_game_version", lambda handle: "1.00.19")
+    monkeypatch.setattr(mw.typeinfo, "ga_module", lambda pid: (0x7ff800000000, 0x62ea000))
+    monkeypatch.setattr(mw.typeinfo, "build_fingerprint", lambda r, b, version=None: "fp")
+    monkeypatch.setattr(attach, "prepare", lambda *a, **k: None)
+    mw.run(hz=10, output_dir=str(tmp_path), debug=False)
+    markers = [ln.split("[[STATUS]]")[1].strip().split()[0]
+               for ln in capsys.readouterr().out.splitlines() if "[[STATUS]]" in ln]
+    assert "ready" not in markers
+    assert markers[-1] == "searching", markers

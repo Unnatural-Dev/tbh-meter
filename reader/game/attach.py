@@ -576,7 +576,14 @@ def prepare(reader, pid, fp, cache_path, output_dir, game_version, *, startup):
     """
     t0 = time.time()
     ga_base, _ = typeinfo.ga_module(pid)
-    resolved = _resolve_all(reader, pid, fp, cache_path, ga_base)
+    if startup:
+        resolved = _resolve_all(reader, pid, fp, cache_path, ga_base)
+    else:
+        # Re-attach has always retried when RESOLUTION raised (and only then): preserve that.
+        try:
+            resolved = _resolve_all(reader, pid, fp, cache_path, ga_base)
+        except Exception:
+            return None
     calib = load_calib(cache_path, fp) if fp else None
     if calib and ga_base:
         tbase = typeinfo.table_base(reader, ga_base, calib["anchor_rva"])

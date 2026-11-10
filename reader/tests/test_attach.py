@@ -261,3 +261,41 @@ def test_ghost_diagnostics_are_startup_only(world, monkeypatch, startup):
     assert state.sm == SM
     assert any("candidates=2 hk-accept=2 carriers=1" in line for line in lines)
     assert any("[party-pick]   ghost 0xd00000" in line for line in lines) is startup
+
+def test_reattach_resolution_error_reports_incomplete_but_startup_raises(world, monkeypatch):
+    def boom(*a):
+        raise RuntimeError("resolution exploded")
+    monkeypatch.setattr(attach, "_resolve_all", boom)
+    assert prepare(world, startup=False) is None
+    with pytest.raises(RuntimeError):
+        prepare(world, startup=True)
+
+
+def test_reattach_errors_after_resolution_still_escape(world, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("carrier pick exploded")
+    monkeypatch.setattr(attach.save, "pick_live_sm", boom)
+    with pytest.raises(RuntimeError):
+        prepare(world, startup=False)
+
+
+def test_fast_path_carriers_come_from_the_backref_not_rva_instances(world, monkeypatch):
+    _, classes, inst, _, _ = world
+    rva_inst = dict(inst, PlayerSaveData=[], CommonSaveData=[], StageManager=[])
+    monkeypatch.setattr(attach, "resolve_via_rva", lambda *a: (classes, rva_inst))
+    state = prepare(world, startup=False)
+    assert (state.psd_list, state.csd_list, state.sm_list) == ([PSD], [CSD], [SM])
+
+
+def test_successful_scan_calibration_announces_fast_path(world, monkeypatch, capsys):
+    cache = scan_world(world, monkeypatch)
+    Path(cache).unlink()
+    prepare(world, startup=False)
+    assert "fast path armed" in capsys.readouterr().out
+
+
+def test_scan_without_fingerprint_skips_calibration_silently(world, monkeypatch, capsys):
+    scan_world(world, monkeypatch)
+    monkeypatch.setattr(attach.typeinfo, "discover_anchor", lambda *a: pytest.fail("calibrated without fp"))
+    assert prepare(world, startup=False, fp=None) is not None
+    assert "[calib] FAILED" not in capsys.readouterr().out

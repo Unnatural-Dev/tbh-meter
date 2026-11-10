@@ -432,7 +432,10 @@ def run(hz, output_dir, debug=False, anomaly_dump=False):
     attached = attach.prepare(reader, pid, fp, cache_path, output_dir, game_version, startup=True)
     if attached is None:
         print("\n[error] incomplete resolution. Try again with the game in combat.")
-        # Keep the splash in a deadline-protected phase while the supervisor retries.
+        # Revert the splash to a DEADLINE-PROTECTED phase before exiting: the last marker was
+        # `scanning`/`resolving`, which the app's splash has NO dismiss timeout for (only `searching`
+        # does), and this path persists nothing, so the supervisor re-spawns and cold-scans again.
+        # Without this the splash hangs on "First time on this version — mapping memory".
         _emit_status("searching")
         return
     # Gold remains local: close_run's self-heal can replace it during this attachment.
@@ -848,13 +851,11 @@ def run(hz, output_dir, debug=False, anomaly_dump=False):
                             # → seed-miss → cold scan (the attach.prepare below logs the path). Visible on the spot.
                             diag(f"[reattach] pid={npid} version={game_version} fp={fp} "
                                  f"ga_base={hex(ga_base_r) if ga_base_r else None}")
-                            try:
-                                # calib is fp-keyed and already persisted by the initial scan → do NOT re-save
-                                # here (no legacy save_cache: the gate handles the persist in the slow path).
-                                attached = attach.prepare(reader, npid, fp, cache_path, output_dir,
-                                                          game_version, startup=False)
-                            except Exception:
-                                attached = None
+                            # calib is fp-keyed and already persisted by the initial scan → do NOT re-save
+                            # here (no legacy save_cache: the gate handles the persist in the slow path).
+                            # prepare(startup=False) returns None when resolution raises or is incomplete.
+                            attached = attach.prepare(reader, npid, fp, cache_path, output_dir,
+                                                      game_version, startup=False)
                             if attached is not None:
                                 sc_class = attached.sc_class
                                 sf_class = attached.sf_class
