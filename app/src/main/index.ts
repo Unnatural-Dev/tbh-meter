@@ -298,6 +298,7 @@ let splashBlockedWatch: ReturnType<typeof setInterval> | null = null;
 // past the deadline so a transient blocker (e.g. an update that finishes) can't strand the user.
 let splashSearchingWatch: ReturnType<typeof setInterval> | null = null;
 let splashArmedAt = 0;
+const splashPreviewTimers: ReturnType<typeof setTimeout>[] = [];
 
 /** "ready" no longer dismisses the splash — it only flips the renderer's text to "Ready!"
  *  (via onReaderStatus) and arms a FALLBACK timer. The splash stays up until the meter has
@@ -319,6 +320,8 @@ function onFirstLiveForSplash(snap: LiveSnapshot | null): void {
 function dismissSplash(): void {
   if (!splashActive && !splashWin) return;
   splashActive = false;
+  for (const timer of splashPreviewTimers) clearTimeout(timer);
+  splashPreviewTimers.length = 0;
   readerEvents.off("status", onReaderStatusForSplash);
   getLiveSource().off("live", onFirstLiveForSplash);
   if (readyDismissTimer !== null) {
@@ -335,7 +338,7 @@ function dismissSplash(): void {
   }
   if (splashWin && !splashWin.isDestroyed()) splashWin.close();
   splashWin = null;
-  if (liveWin && !liveWin.isDestroyed()) liveWin.show();
+  if (!quitting && liveWin && !liveWin.isDestroyed()) liveWin.show();
 }
 
 /** Load the shared renderer bundle, selecting the root via URL hash. */
@@ -451,6 +454,7 @@ const liveDrag = createLiveDrag({
 // --------------------------------------------------------------------------- //
 
 app.whenReady().then(() => runIfPrimary(isPrimaryInstance, async () => {
+  if (quitting) return;
   // a second instance is quitting (runIfPrimary skips this) — it must never reach
   // startReader, which would race a second reader against the primary before the quit lands.
   // Match the variant's appId so Windows treats the RC as a distinct app (its own taskbar
@@ -575,13 +579,15 @@ app.whenReady().then(() => runIfPrimary(isPrimaryInstance, async () => {
     // screen (updating, restarting, searching…ready) is visible end-to-end, then it
     // dismisses into the overlay. __devSetUpdateStatus is a no-op in packaged builds.
     if (is.dev && !readerWillRun()) {
-      setTimeout(() => __devSetUpdateStatus({ state: "downloading", version: "1.4.3", percent: 24 }), 1200);
-      setTimeout(() => __devSetUpdateStatus({ state: "downloading", version: "1.4.3", percent: 71 }), 2200);
-      setTimeout(() => __devSetUpdateStatus({ state: "downloaded", version: "1.4.3" }), 3200);
-      setTimeout(() => __devSetUpdateStatus({ state: "idle" }), 4400); // "relaunch" → reader flow
-      setTimeout(() => readerEvents.emit("status", "resolving"), 4700);
-      setTimeout(() => readerEvents.emit("status", "scanning"), 5700);
-      setTimeout(() => readerEvents.emit("status", "ready"), 7400);
+      splashPreviewTimers.push(
+        setTimeout(() => __devSetUpdateStatus({ state: "downloading", version: "1.4.3", percent: 24 }), 1200),
+        setTimeout(() => __devSetUpdateStatus({ state: "downloading", version: "1.4.3", percent: 71 }), 2200),
+        setTimeout(() => __devSetUpdateStatus({ state: "downloaded", version: "1.4.3" }), 3200),
+        setTimeout(() => __devSetUpdateStatus({ state: "idle" }), 4400), // "relaunch" → reader flow
+        setTimeout(() => readerEvents.emit("status", "resolving"), 4700),
+        setTimeout(() => readerEvents.emit("status", "scanning"), 5700),
+        setTimeout(() => readerEvents.emit("status", "ready"), 7400),
+      );
     }
   }
 
@@ -592,7 +598,7 @@ app.whenReady().then(() => runIfPrimary(isPrimaryInstance, async () => {
   // app is relaunching (skip the rest); "proceed" = bring the reader up as usual. Instant
   // "proceed" off the supported NSIS-Windows install (dev / macOS / RC fall straight through
   // to the reader / dev-preview path). The splash is already up and shows the progress.
-  if ((await checkAndApplyBootUpdate()) === "updated") return;
+  if ((await checkAndApplyBootUpdate()) === "updated" || quitting) return;
 
   // Spawn the bundled reader (Windows + packaged only; no-op otherwise). It writes
   // raw/<id>.json + live.json into the meter folder created above — the same dir the
@@ -611,6 +617,7 @@ app.whenReady().then(() => runIfPrimary(isPrimaryInstance, async () => {
   // logs/ (converting any run with no/stale structured log) AND migrates the legacy runs.jsonl into
   // logs/ preserving each run id; it then watches raw/ for new runs. App-read of logs/ is PR4.
   const ingestor = await getIngestor();
+  if (quitting) return;
   ingestor.setDir(dir);
   ingestor.start();
 
@@ -636,6 +643,7 @@ app.whenReady().then(() => runIfPrimary(isPrimaryInstance, async () => {
 
 app.on("before-quit", () => {
   quitting = true;
+  dismissSplash();
 });
 
 app.on("window-all-closed", () => {
