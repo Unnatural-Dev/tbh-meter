@@ -24,7 +24,7 @@ code_anchors:
 guarded_by:
   - tests/test_attach.py::test_fast_path_prepares_carriers_and_catalogs_without_scan
   - tests/test_attach.py::test_incomplete_resolution_returns_none_without_calibration
-  - tests/test_attach.py::test_startup_only_gold_recheck_and_diagnostics
+  - tests/test_attach.py::test_reattach_gets_startup_gold_recheck_and_diagnostics
   - tests/test_attach.py::test_two_prepares_keep_their_own_catalog_instances
   - tests/test_run_lifecycle_predicates.py::TestIsPartial::test_zero_damage_success_is_always_partial
 ---
@@ -56,8 +56,8 @@ come **only** from `config.offsets` (the "bible"). Therefore: **a NEW metric or 
 `game/attach.py::prepare` owns resolution, structural manager validation, field calibration,
 carrier picks and their diagnostics, gold handles, and catalog export. It returns a frozen
 `AttachedState`, or `None` for incomplete essential managers/log classes. Startup and re-attach
-use the same seam. PR-1 intentionally retains the startup-only gold re-check and extra
-save/gold/ghost diagnostics; making re-attach match startup is a separate PR-2 change.
+use the same seam and run the same carrier/save/gold checks and diagnostics (only the
+`[party-pick]` label differs).
 `run()` owns searching/ready markers, retries, and all per-run state.
 
 ## What "scaffolding" is (the legitimate exception)

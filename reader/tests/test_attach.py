@@ -109,7 +109,7 @@ def test_incomplete_resolution_returns_none_without_calibration(world, monkeypat
 
 
 @pytest.mark.parametrize("startup", [True, False])
-def test_startup_only_gold_recheck_and_diagnostics(world, monkeypatch, capsys, startup):
+def test_reattach_gets_startup_gold_recheck_and_diagnostics(world, monkeypatch, capsys, startup):
     lines = []
     monkeypatch.setattr(attach, "diag", lines.append)
     monkeypatch.setattr(attach, "combat_gold_klass_ok", lambda *a: False)
@@ -118,14 +118,17 @@ def test_startup_only_gold_recheck_and_diagnostics(world, monkeypatch, capsys, s
     monkeypatch.setattr(attach, "resolve_combat_gold_klass_by_index", lambda *a: next(answers))
     monkeypatch.setattr(attach, "resolve_combat_gold_klass", lambda *a: GOLD + 256)
     state = prepare(world, startup=startup)
-    assert state.gold_klass == (GOLD + 256 if startup else GOLD)
-    assert any("[party-pick] startup" in line for line in lines) is startup
-    assert any("[party-pick] re-attach" in line for line in lines) is not startup
-    assert any("[save-pick]" in line for line in lines) is startup
-    assert any("[gold]" in line for line in lines) is startup
+    # A stale klass is re-resolved on BOTH paths (re-attach used to keep it until a run self-healed).
+    assert state.gold_klass == GOLD + 256
+    label = "startup" if startup else "re-attach"
+    assert any(f"[party-pick] {label} candidates=" in line and "party_read=" in line for line in lines)
+    assert any("[save-pick]" in line for line in lines)
+    assert any("[gold]" in line for line in lines)
+    assert any(line.startswith("[resolve] fp=") for line in lines)
     stdout = capsys.readouterr().out
-    assert ("[live party]" in stdout) is startup
-    assert ("[live gold]" in stdout) is startup
+    assert "[ok] resolved in" in stdout
+    assert "[live party]" in stdout
+    assert "[live gold]" in stdout
     assert "[[STATUS]] ready" not in stdout and "[[STATUS]] searching" not in stdout
 
 
@@ -209,7 +212,8 @@ def test_calibration_uses_structure_when_value_scan_has_no_gold(world, monkeypat
     monkeypatch.setattr(attach, "gold_index_of_klass", lambda *a: pytest.fail("missing gold shortcut"))
     monkeypatch.setattr(attach, "gold_index_by_structure", lambda *a: 44)
     state = prepare(world, startup=False)
-    assert state.gold_klass is None
+    # The scan found no gold; the re-check recovers it via the freshly calibrated index.
+    assert state.gold_klass == GOLD
     assert state.idx_ut == 44
     assert json.loads(Path(cache).read_text())["calib"][FP]["idx_ut"] == 44
 
@@ -246,7 +250,7 @@ def test_prepare_exports_drop_catalog_from_this_attachment(world):
 
 
 @pytest.mark.parametrize("startup", [True, False])
-def test_ghost_diagnostics_are_startup_only(world, monkeypatch, startup):
+def test_ghost_diagnostics_on_both_paths(world, monkeypatch, startup):
     reader, _, inst, _, _ = world
     ghost = 0xD00000
     inst["StageManager"].insert(0, ghost)
@@ -260,7 +264,7 @@ def test_ghost_diagnostics_are_startup_only(world, monkeypatch, startup):
     state = prepare(world, startup=startup)
     assert state.sm == SM
     assert any("candidates=2 hk-accept=2 carriers=1" in line for line in lines)
-    assert any("[party-pick]   ghost 0xd00000" in line for line in lines) is startup
+    assert any("[party-pick]   ghost 0xd00000" in line for line in lines)
 
 def test_reattach_resolution_error_reports_incomplete_but_startup_raises(world, monkeypatch):
     def boom(*a):
