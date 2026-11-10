@@ -1,8 +1,8 @@
 """Run boundary (metrics/run_boundary.py): the per-run kill/damage ledger and the run-end rules.
 
-Two seams, agreed before writing (see the PR):
+Two seams:
   1. RECORDED replay: four live fail boundaries (game 1.3.2, 10 Hz, read-only capture) through
-     the module, asserting the exact per-run kills/damage that today's meter produces. This test
+     the module, asserting the exact per-run kills/damage that the pre-refactor meter produces. This test
      pins BEHAVIOUR during the refactor; the known post-fail overcount is preserved on purpose
      and gets its own fix on top.
   2. HAND-BUILT tick sequences for the abandoned / reload / stage-adoption rules, which the
@@ -36,7 +36,7 @@ def _windows():
 
 
 def _replay(window):
-    """Drive the module the way the 1 s loop does: observe the tick, then process the close."""
+    """Drive the module the way the reader loop does: observe the tick, then process the close."""
     rb = RunBoundary(now=0.0)
     closed = None
     for tick in window["ticks"]:
@@ -47,7 +47,7 @@ def _replay(window):
 
 
 class TestRecordedFailBoundaries:
-    # Expected values come from today's production order (DpsTracker.update, then the close on
+    # Expected values come from the pre-refactor production order (DpsTracker.update, then the close on
     # the tick the StageFailedLog is seen, then a fresh tracker), replayed over the same capture.
     # Kills: (before the fail, after the fail). Damage after the fail is the overcount's companion.
     EXPECTED = [
@@ -58,7 +58,7 @@ class TestRecordedFailBoundaries:
     ]
 
     @pytest.mark.parametrize("i", range(4))
-    def test_kills_and_damage_match_todays_meter(self, i):
+    def test_kills_and_damage_match_pre_refactor_meter(self, i):
         closed, rb = _replay(_windows()[i])
         kills_before, kills_after, damage_after = self.EXPECTED[i]
         assert closed.kills == kills_before

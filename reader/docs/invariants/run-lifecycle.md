@@ -52,7 +52,7 @@ guarded_by:
   - tests/test_raw_record.py::test_absorbed_boss_box_lands_inside_drops_envelope_without_shape_change
   - tests/test_log_scan.py::TestCapRotation::test_rotation_with_size_pinned_detects_new_tail_entry
   - tests/test_log_scan.py::TestClearThenBoxOrderingAcrossRotation::test_clear_then_box_separate_rotated_ticks
-  - tests/test_run_boundary.py::TestRecordedFailBoundaries::test_kills_and_damage_match_todays_meter
+  - tests/test_run_boundary.py::TestRecordedFailBoundaries::test_kills_and_damage_match_pre_refactor_meter
   - tests/test_run_boundary_rules.py::TestReloadRule::test_tolerance_of_two
   - tests/test_run_boundary_rules.py::TestStageAdoption::test_does_not_readopt_at_or_after_grace
   - tests/test_run_boundary_rules.py::TestShouldAbandon::test_abandoned_close_uses_the_old_stage_key

@@ -76,7 +76,8 @@ and the orchestrator bloats to the point where nobody understands the lifecycle 
 
 Proof the boundary works: **the pure decisions the orchestrator legitimately owns are extracted as
 pure functions and tested in isolation** — `_should_skip_run`, `_is_partial`, `_pick_list_singleton`,
-`RunBoundary` (run-end rules + ledger, fed by the loop), `_read_catalogs` (touching no process at all, they run on Mac via `MockReader`). That's exactly how
+`_read_catalogs` (touching no process at all, they run on Mac via `MockReader`), plus `RunBoundary`
+(run-end rules + ledger, fed by the loop). That's exactly how
 the `_is_partial` drift (the note said `== 0`, the code is `total_damage <= 0`) got **covered by a
 test** instead of becoming a silent bug. If a "metric" of yours can't be tested this way, it's in the
 wrong place — move it to `metrics/` or `game/`.

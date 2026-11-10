@@ -1477,8 +1477,8 @@ def run(hz, output_dir, debug=False):
                                     idx_ut = _cr["idx_ut"]
                                 else:
                                     tbase = idx_ut = None
+                                rb.restart(time.time())   # stamp the run start before new_run's reads, as at start-up
                                 R = new_run()
-                                rb.restart(time.time())
                                 # Re-seed the boundary cursor to the NEW lm's current tail (the old
                                 # ga_base/instance is dead after re-attach): skip the backlog so the
                                 # interrupted run's history isn't replayed as clears.
