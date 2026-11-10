@@ -6,7 +6,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/Unnatural-Dev/tbh-meter?label=latest&color=4c1)](https://github.com/Unnatural-Dev/tbh-meter/releases/latest)
 [![Installs](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FUnnatural-Dev%2Ftbh-meter%2Fbadges%2Finstalls.json&cacheSeconds=1800)](https://github.com/Unnatural-Dev/tbh-meter/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-0078d4)](https://github.com/Unnatural-Dev/tbh-meter/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows%2011-0078d4)](https://github.com/Unnatural-Dev/tbh-meter/releases/latest)
 [![Star on GitHub](https://img.shields.io/github/stars/Unnatural-Dev/tbh-meter?style=social)](https://github.com/Unnatural-Dev/tbh-meter)
 
 <img src=".github/assets/meter-hero.png" width="820" alt="TBH Meter — the Runs history window with the live overlay docked at the bottom-left">
@@ -55,7 +55,7 @@ see `scripts/refresh-chest-planner.mjs` to refresh that data. The app does not c
 
 ## Install
 
-> **Windows 10+ only.** The reader uses Windows APIs to read game memory.
+> **Windows 11.** The reader uses Windows APIs to read game memory.
 
 1. Download **`tbh-meter-Setup-<version>.exe`** from the [**latest release**](https://github.com/Unnatural-Dev/tbh-meter/releases/latest).
 2. Run the installer — **no admin rights needed** (it installs per-user).
