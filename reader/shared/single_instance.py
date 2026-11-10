@@ -12,9 +12,15 @@ gets ERROR_ALREADY_EXISTS and gives up. The `Local\\` namespace (session scope) 
 allowed for a non-elevated user, and is where the app + a manual run collide. (`Global\\`
 would require SeCreateGlobalPrivilege, which the non-elevated app doesn't have.)
 
+Dev-only exception: `acquire(tag)` (CLI `--instance-tag NAME`) appends `-NAME` to the mutex name so
+a second reader can run beside the first for a live A/B. The CLI forces a separate --output for it
+(never share a raw/ folder) and warns about the gold contention above. No tag = the name above,
+unchanged — the app relies on that.
+
 Off Windows it's a no-op: the reader only attaches to the game on Windows, so there's nothing to
 protect in dev/CI (--selftest doesn't even reach here).
 """
+import re
 import sys
 
 # Keep the mutex handle alive for the lifetime of the process. If it gets GC'd,
@@ -25,9 +31,26 @@ MUTEX_NAME = "Local\\TBH_Meter_Reader"
 _ERROR_ALREADY_EXISTS = 183
 
 
-def acquire():
+_TAG_RE = re.compile(r"[A-Za-z0-9_-]{1,32}")
+
+
+def validate_tag(tag):
+    """Return `tag` if it is a safe mutex suffix (1-32 of A-Z a-z 0-9 _ -); else ValueError.
+    No backslash/space/dot: the tag becomes part of a kernel object name."""
+    if not isinstance(tag, str) or not _TAG_RE.fullmatch(tag):
+        raise ValueError(f"invalid instance tag {tag!r}: use 1-32 of A-Z a-z 0-9 _ -")
+    return tag
+
+
+def mutex_name(tag=None):
+    """Mutex name for this reader. No tag = the historical name (the app relies on it)."""
+    return MUTEX_NAME if tag is None else f"{MUTEX_NAME}-{validate_tag(tag)}"
+
+
+def acquire(tag=None):
     """Try to become the only reader running. True if it succeeded (or if there's nothing to
-    protect off Windows); False if another instance is already running."""
+    protect off Windows); False if another instance is already running. `tag` (dev A/B only)
+    scopes the lock so a second, tagged reader can coexist with the untagged one."""
     if sys.platform != "win32":
         return True
     import ctypes
@@ -37,7 +60,7 @@ def acquire():
     kernel32.CreateMutexW.restype = wintypes.HANDLE
     kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
 
-    handle = kernel32.CreateMutexW(None, False, MUTEX_NAME)
+    handle = kernel32.CreateMutexW(None, False, mutex_name(tag))
     err = ctypes.get_last_error()
     if not handle:
         # Even creating the mutex failed — fail OPEN: never block the only reader.
