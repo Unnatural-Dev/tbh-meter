@@ -37,6 +37,8 @@ code_anchors:
   - metrics/run_boundary.py::RunBoundary.should_abandon
   - metrics/run_boundary.py::ADOPT_GRACE
   - metrics/run_boundary.py::RELOAD_TOLERANCE
+  - metrics/anomaly_dump.py::AnomalyDump
+  - metrics/anomaly_dump.py::trigger_reason
   - config/offsets.py::LogManager.LOG_LIST
 asserts:
   - meter_windows.PARTIAL_CAPTURE_MIN == 0.95
@@ -60,6 +62,9 @@ guarded_by:
   - tests/test_run_wiring.py::test_reattach_does_not_leak_interrupted_run_into_next_run
   - tests/test_run_wiring.py::test_abandoned_record_carries_ledger_mobs_damage_duration_and_old_stage
   - tests/test_run_wiring.py::test_success_close_emits_ledger_and_live_line_shows_pre_close_values
+  - tests/test_run_wiring.py::test_anomaly_dump_flag_writes_the_ticks_of_an_overcounted_success
+  - tests/test_run_wiring.py::test_without_the_flag_nothing_is_written_and_records_are_unchanged
+  - tests/test_anomaly_dump.py::test_unknown_values_never_trigger
 ---
 
 # Run lifecycle
@@ -128,6 +133,17 @@ What does NOT move: closing on `StageClearLog`/`StageFailedLog` stays in the orc
 needs the memory reads), and the run's other state (gold/xp/party/drops/deaths) stays in `new_run()`.
 A new end-of-run rule goes in the module (pure, testable), not inline in `run()` —
 [[invariants/orchestration-purity]].
+
+## Anomaly dump (opt-in diagnostics): `metrics/anomaly_dump.py::AnomalyDump`
+
+`--anomaly-dump` (default OFF, the app never passes it) keeps a bounded ring — `ceil(360 * hz)` ticks: a whole run plus the boundary before it — of what
+the loop ALREADY reads each tick: time, the monster snapshot (`[addr, hp, hp_max]`, `[]` between waves, `None` if
+invalid), the raw live stage key, the dead count, and the log classes that closed a run on that tick. It adds NO
+memory read. On each run close `trigger_reason` judges a SUCCESS: `mobs > total_mobs`, or `duration - clear_time > 5`
+(both known; an unknown input never triggers). A hit writes `<output>/anomalies/<run_id>.ticks.jsonl.gz` (the ring,
+which keeps rolling) plus `<run_id>.json` (outcome, counts, reason, reader version, hz). Capped per process
+(`MAX_DUMPS`); every I/O error is logged via `diag()` and swallowed. Pure module fed by `run()` — the rule lives
+there, not inline ([[invariants/orchestration-purity]]); the flag never changes `raw/<id>.json`.
 
 ## Pending-close: the boss box arrives AFTER the clear (only the success WRITE is delayed)
 

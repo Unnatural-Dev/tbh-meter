@@ -14,7 +14,7 @@ in ms, no session/counter — Redesign 2; the app's converter turns it into logs
 (RAW snapshot of the current run, overwritten ~1x/s, the app cooks the overlay), meter.log (event log,
 timestamped), resolve_cache.json. The reader is a DUMB SENSOR: it emits raw to both streams; the app
 derives dps/label/format and the SESSION (no cooking here).
-Run: python meter_windows.py [--output DIR] [--hz N] [--debug] [--instance-tag NAME] (Ctrl+C exits).
+Run: python meter_windows.py [--output DIR] [--hz N] [--debug] [--instance-tag NAME] [--anomaly-dump] (Ctrl+C exits).
 --instance-tag is DEV-ONLY (live A/B of two readers); it requires its own --output.
 """
 
@@ -45,6 +45,7 @@ from metrics.gold import (resolve_combat_gold_klass, combat_gold_klass_ok,
                           gold_index_by_structure)
 from metrics import xp
 from metrics.run_boundary import RunBoundary
+from metrics.anomaly_dump import AnomalyDump, describe_reader_version
 from game import build, save, drops, waves
 from game.models import live_monster_snapshot as read_live_monsters, live_stage_key as read_live_stage_key
 
@@ -941,7 +942,7 @@ def _autocalibrate_fields(reader, tup, fp):
         diag(f"[field-calib] skipped (error: {e}) — static offsets kept")
 
 
-def run(hz, output_dir, debug=False):
+def run(hz, output_dir, debug=False, anomaly_dump=False):
     _emit_status("searching")   # app: splash shows "looking for the game"
     cache_path = os.path.join(output_dir, "resolve_cache.json")
     pid = find_pid()
@@ -1124,6 +1125,9 @@ def run(hz, output_dir, debug=False):
                 "wave_reduction": waves.wave_reduction(build.read_runes(reader, p))}
 
     rb = RunBoundary(time.time())
+    # Opt-in (--anomaly-dump): a ring of the last ~6 min of ticks (a whole run + the boundary before it), written only for an overcounted run.
+    # Fed from values the loop already reads; None (the default) leaves every code path untouched.
+    anomaly = AnomalyDump(hz, output_dir, reader_version=describe_reader_version()) if anomaly_dump else None
     R = new_run()
     # run_num is NOT reset here — it's resumed from resume_session (above) so as not to recycle an id.
 
@@ -1389,6 +1393,9 @@ def run(hz, output_dir, debug=False):
             drops=R["drops"], heroes=heroes_out, heroes_ok=(not party_degraded),
             runes=runes, inventory=inventory, stash=stash, pets=pets)
         rec_path = os.path.join(raw_dir, f"{rec['id']}.json")   # raw/<ts_ms>.json (id = ts in ms)
+        if anomaly:    # --anomaly-dump: judge the closed run (overcount / long vs clear time); never raises
+            anomaly.on_run_close(run_id=rec["id"], outcome=status, mobs=ended.kills, total_mobs=total,
+                                 duration=measured, clear_time=clear_time, stage_key=stage_key)
         if status == "success":
             # SUCCESS pends instead of writing NOW: the clear's boss box (GetBoxLog mt=1/2)
             # arrives ~0.6s later, in another LOG_LIST growth — the loop absorbs it into the pending
@@ -1536,6 +1543,8 @@ def run(hz, output_dir, debug=False):
             # stage reloads on a manual restart. Clear/auto-replay do NOT zero it (they log separately).
             dead_now = reader.ri32((reader.rptr(msm + MonsterSpawnManager.DEAD_MONSTER_LIST) or 0) + List.SIZE)
             rb.observe_dead_count(dead_now)   # the reload rule (count dropped by > 2) lives in the module
+            if anomaly:
+                anomaly.observe_tick(now, _snap, live_sk, dead_now)
 
             # close by LOG: StageClearLog (success) or StageFailedLog (fail). Detection of which
             # entries are NEW is rotation-aware (LogScanCursor, by OBJECT POINTER): the LOG_LIST is
@@ -1548,8 +1557,12 @@ def run(hz, output_dir, debug=False):
             for e in log_cursor.new_entries(_scan_read, _scan_size, LOG_SCAN_CAP):
                 kl = reader.rptr(e)
                 if kl == sc_class:
+                    if anomaly:
+                        anomaly.note_closed("StageClearLog")
                     close_run("success", cur_key, e); closed = True
                 elif kl == sf_class:
+                    if anomaly:
+                        anomaly.note_closed("StageFailedLog")
                     close_run("fail", cur_key, e); closed = True
                 elif gb_class and kl == gb_class:
                     # GetBoxLog @0x40 is the TYPE ("TreasureChest_<Type>"), NOT an item key
@@ -1749,6 +1762,10 @@ def main():
                          "view). Off by default: the app reads live.json and the "
                          "reader runs hidden, so this is only useful when you run the "
                          "reader in a terminal yourself to debug.")
+    ap.add_argument("--anomaly-dump", action="store_true",
+                    help="DEV/diagnostic: keep the last ~6 min of ticks in memory and, when a run closes "
+                         "suspicious (success with mobs > total, or duration > clear time + 5 s), write them "
+                         "to <output>/anomalies/<run_id>.ticks.jsonl.gz (+ .json). Off by default; reads nothing new.")
     ap.add_argument("--instance-tag", metavar="NAME", type=_instance_tag, default=None,
                     help="DEV ONLY: take the single-instance lock under NAME so a second reader "
                          "(e.g. an old revision) can run beside the first for a live A/B. "
@@ -1826,7 +1843,7 @@ def main():
               "(SAVE fallback = 2x gold). Do not trust this instance's gold; never use it "
               "beside the app's reader for real runs.")
     try:
-        run(args.hz, output_dir, args.debug)
+        run(args.hz, output_dir, args.debug, args.anomaly_dump)
     except Exception as e:
         traceback.print_exc()
         diag(f"[fatal] run() raised: {type(e).__name__}: {e}")

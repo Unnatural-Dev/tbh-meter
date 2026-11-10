@@ -62,7 +62,7 @@ class World:
         self.die_at = None        # tick at which the FIRST reader starts failing (None = never)
 
 
-def _drive(monkeypatch, tmp_path, world, hz=1):
+def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
     complete = (SC, SF, MSM, LM, [CSD], [0x60], STAGE_INFO, {2: (1, 1, 1)}, {3: 1}, [0x70], None, None, None, None)
     monkeypatch.setattr(mw, "find_pid", lambda: 1234)
     monkeypatch.setattr(mw, "open_process", lambda pid: 0xDEAD)
@@ -85,6 +85,7 @@ def _drive(monkeypatch, tmp_path, world, hz=1):
         return complete
     monkeypatch.setattr(mw, "resolve_all", resolve_all)
     monkeypatch.setattr(mw, "write_drop_catalog", lambda *a, **k: None)
+    monkeypatch.setattr(mw, "describe_reader_version", lambda: "test-ver")
     monkeypatch.setattr(mw, "diag", lambda *a, **k: world.diag.append(a[0] if a else ""))
     monkeypatch.setattr(mw, "_emit_status", lambda *a, **k: None)
     _real_write = mw._write_atomic
@@ -129,7 +130,7 @@ def _drive(monkeypatch, tmp_path, world, hz=1):
         if world.tick >= world.stop_after:
             raise KeyboardInterrupt
     monkeypatch.setattr(mw.time, "sleep", sleep)
-    mw.run(hz=hz, output_dir=str(tmp_path), debug=False)
+    mw.run(hz=hz, output_dir=str(tmp_path), debug=False, **run_kwargs)
     return readers
 
 
@@ -256,3 +257,60 @@ def test_reattach_with_lower_dead_count_is_not_a_reload(monkeypatch, tmp_path):
     w.script.update({t: dict(key=A, dead=10) for t in range(8, 12)})    # new instance's counter is lower
     _drive(monkeypatch, tmp_path, w)
     assert _records(tmp_path) == []
+
+def _overcount_world():
+    """Stage A holds 5 + 1 = 6 mobs; 7 die, then the clear log lands: a success with mobs > total_mobs."""
+    w = World()
+    w.stop_after = 8
+    w.script = {
+        0: dict(key=A, snap=[_mob(i) for i in range(1, 8)], dead=0),
+        1: dict(key=A, snap=[_mob(i, 50.0) for i in range(1, 8)], dead=0),
+        2: dict(snap=[], dead=7),                  # no live key this tick (between waves): recorded as read, None
+        3: dict(key=A, snap=[], dead=7, log=1),
+        4: dict(key=A, snap=[], dead=7), 5: dict(key=A, snap=[], dead=7),
+    }
+    return w
+
+
+def test_anomaly_dump_flag_writes_the_ticks_of_an_overcounted_success(monkeypatch, tmp_path):
+    import gzip
+    w = _overcount_world()
+    _drive(monkeypatch, tmp_path, w, anomaly_dump=True)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == ["success"], w.events
+    assert _val(recs[0]["mobs"]) == 7 and _val(recs[0]["total_mobs"]) == 6
+    rid = recs[0]["id"]
+    ring = tmp_path / "anomalies" / f"{rid}.ticks.jsonl.gz"
+    meta = json.loads((tmp_path / "anomalies" / f"{rid}.json").read_text(encoding="utf-8"))
+    assert meta["run_id"] == rid and meta["reason"] == "mobs>total_mobs" and meta["stage_key"] == A
+    assert meta["mobs"] == 7 and meta["total_mobs"] == 6 and meta["hz"] == 1 and meta["reader_version"] == "test-ver"
+    with gzip.open(ring, "rt", encoding="utf-8") as f:
+        ticks = [json.loads(line) for line in f]
+    assert [t["t"] for t in ticks] == [1000.0, 1001.0, 1002.0, 1003.0]       # up to and including the close tick
+    assert ticks[0]["monsters"] == [[i, 100.0, 100.0] for i in range(1, 8)]
+    assert ticks[0]["stage_key"] == A and ticks[2]["dead"] == 7 and ticks[2]["monsters"] == []
+    assert ticks[2]["stage_key"] is None            # the raw live read, not the carried-over current key
+    assert [t["closed"] for t in ticks] == [[], [], [], ["StageClearLog"]]
+
+
+def test_without_the_flag_nothing_is_written_and_records_are_unchanged(monkeypatch, tmp_path):
+    on_dir, off_dir = tmp_path / "on", tmp_path / "off"
+    on_dir.mkdir(), off_dir.mkdir()
+    _drive(monkeypatch, on_dir, _overcount_world(), anomaly_dump=True)
+    _drive(monkeypatch, off_dir, _overcount_world())
+    assert not (off_dir / "anomalies").exists()
+    assert (on_dir / "anomalies").is_dir()
+    on_raw = [p.read_bytes() for p in sorted((on_dir / "raw").glob("*.json"))]
+    off_raw = [p.read_bytes() for p in sorted((off_dir / "raw").glob("*.json"))]
+    assert on_raw == off_raw and len(off_raw) == 1                           # the flag never touches the record
+
+
+def test_flag_on_but_ordinary_run_leaves_no_anomalies_dir(monkeypatch, tmp_path):
+    w = World()
+    w.stop_after = 8
+    w.script = {0: dict(key=A, snap=[_mob(1), _mob(2)]), 1: dict(key=A, snap=[]),
+                2: dict(key=A), 3: dict(key=A, log=1)}
+    w.script.update({t: dict(key=A) for t in range(4, 8)})
+    _drive(monkeypatch, tmp_path, w, anomaly_dump=True)
+    assert [r["run_outcome"] for r in _records(tmp_path)] == ["success"]
+    assert not (tmp_path / "anomalies").exists()
