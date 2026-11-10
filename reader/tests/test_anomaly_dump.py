@@ -94,6 +94,23 @@ def test_dumps_are_capped_per_process(tmp_path):
     assert anomaly_dump.MAX_DUMPS == 20                        # the default cap
 
 
+def test_metadata_errors_still_count_published_archives_toward_the_cap(tmp_path):
+    ad = AnomalyDump(hz=1, out_dir=str(tmp_path))
+    ad.observe_tick(1.0, [(1, 5.0, 10.0)], 101, 0)
+    anomalies = tmp_path / "anomalies"
+    anomalies.mkdir()
+    # Fail metadata creation AFTER each real archive has been published.
+    for run_id in range(21):
+        (anomalies / f"{run_id}.json").mkdir()
+        assert _close(ad, run_id=run_id) is None
+    archives = sorted(anomalies.glob("*.ticks.jsonl.gz"))
+    assert len(archives) == 20
+    assert all(_ticks(path) == [{"t": 1.0, "monsters": [[1, 5.0, 10.0]],
+                                 "stage_key": 101, "dead": 0, "closed": []}]
+               for path in archives)
+    assert not (anomalies / "20.ticks.jsonl.gz").exists()
+
+
 def test_io_errors_are_logged_and_swallowed(tmp_path, monkeypatch):
     logged = []
     monkeypatch.setattr(anomaly_dump, "diag", logged.append)
