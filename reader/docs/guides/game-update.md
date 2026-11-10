@@ -21,7 +21,7 @@ code_anchors:
   - scripts/validate_live.py
   - il2cpp/typeinfo.py::build_fingerprint
   - meter_windows.py::GAME_VERSION
-  - meter_windows.py::CACHE_FMT
+  - game/attach.py::CACHE_FMT
 ---
 
 # Guide — game update (re-seed + offset verification)

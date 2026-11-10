@@ -230,6 +230,13 @@ contradicts:
 - the `clear_time >= 30` gate on the 1st clause is deliberate: x-10 runs (boss, seconds) must
   not be mislabeled as partial — that's why only `<= 0` catches them.
 
+## Attachment is not a run
+
+Startup and re-attach obtain their classes, catalogs, carrier picks and gold handles from
+`game/attach.py::prepare`. A successful re-attach replaces that state wholesale before
+`rb.restart`, `new_run`, cursor seeding, and the dead-count baseline reset. Preparation does
+not own those transitions; the PSD per-run pick remains in `new_run()`.
+
 ## new_run() initializes ALL the per-run state
 
 `new_run()` is the SOLE source of a run's state and returns the zeroed dict (the kill/damage ledger,

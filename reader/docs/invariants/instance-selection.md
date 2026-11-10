@@ -9,8 +9,8 @@ symptoms:
   - "meter stuck at #1"
   - "recent-runs empty"
 code_anchors:
-  - meter_windows.py::_pick_list_singleton
-  - meter_windows.py::_valid_list_size
+  - game/attach.py::_pick_list_singleton
+  - game/attach.py::_valid_list_size
   - il2cpp/resolver.py::_manager_inst_ok
 guarded_by:
   - tests/test_meter_windows.py::TestPickListSingleton::test_picks_real_over_first_garbage

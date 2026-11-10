@@ -15,7 +15,7 @@ code_anchors:
   - game/field_calib.py::discover_stage_key
   - game/field_calib.py::discover_hp_max
   - game/field_calib.py::discover_hero_list_and_cache
-  - meter_windows.py::_autocalibrate_fields
+  - game/attach.py::_autocalibrate_fields
   - config/offsets.py::Monster.STAGE_KEY
   - config/offsets.py::Unit.CACHE
   - config/offsets.py::FieldCalibWindows
@@ -63,7 +63,7 @@ The four:
 
 `game/field_calib.py` **discovers these four at attach time by SEMANTIC SIGNATURE** — what the field
 *contains*, not where it sits — and applies them in-memory over the static offsets. It runs in
-`meter_windows._autocalibrate_fields` after BOTH resolve paths (fast and scan), so the offsets are
+`game.attach._autocalibrate_fields` after BOTH resolve paths (fast and scan), so the offsets are
 correct before any reading. It piggybacks on structures the resolver already produced
 (`msm`, `sm_list`, `stage_info`, `hero_cat`) → **no extra scan**.
 

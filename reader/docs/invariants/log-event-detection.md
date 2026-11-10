@@ -13,7 +13,7 @@ symptoms:
   - "event not detected"
   - "log event not detected"
 code_anchors:
-  - meter_windows.py::TARGETS
+  - game/attach.py::TARGETS
   - meter_windows.py::run
   - meter_windows.py::BOX_KEY_BY_TIER
   - meter_windows.py::LogScanCursor

@@ -5,7 +5,7 @@ code_anchors:
   - metrics/gold.py
 asserts:
   - metrics.gold.COMBAT_SUBKEY == 1
-  - meter_windows.CACHE_FMT == 9
+  - game.attach.CACHE_FMT == 9
 guarded_by:
   - tests/test_gold.py::TestCombatGoldSave::test_ignores_total_subkey_zero
 ---

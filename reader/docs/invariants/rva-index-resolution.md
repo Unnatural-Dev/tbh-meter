@@ -16,7 +16,7 @@ code_anchors:
   - il2cpp/resolver.py::resolve_via_rva
   - il2cpp/typeinfo.py::class_by_index
   - il2cpp/resolver.py::_manager_inst_ok
-  - meter_windows.py::TARGETS
+  - game/attach.py::TARGETS
 guarded_by:
   - tests/test_resolver_rva.py::test_name_mismatch_returns_none
   - tests/test_resolver_rva.py::test_happy_path_shape
@@ -67,7 +67,7 @@ stability comes from the index, the name only identifies/confirms the slot.
 
 ## Adding a new target class
 
-Put the name (>= 3 letters, stable/non-obfuscated) in **`TARGETS`** (in `meter_windows.py`) and
+Put the name (>= 3 letters, stable/non-obfuscated) in **`TARGETS`** (in `game/attach.py`) and
 **let the scan find it** — the calibration learns its `TypeDefIndex` from the K the scan resolved
 and persists it in the cache; from the next calibrated launch onward it comes out via the fast
 path. There's no place to hard-code an index: it is discovered and VERIFIED against the build, and

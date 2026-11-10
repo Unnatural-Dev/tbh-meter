@@ -234,3 +234,30 @@ def diag(msg):
         f.flush()
     except Exception:
         pass
+
+
+def _emit_status(state):
+    """Lifecycle marker (machine-readable) for the Electron app's splash — read
+    in reader-process.ts (statusFromLine). flush=True guarantees it reaches the stdout pipe
+    RIGHT AWAY (otherwise it gets stuck in the block buffer and the splash lags). The human logs
+    below stay the same. Phases: searching -> resolving -> ready."""
+    print(f"[[STATUS]] {state}", flush=True)
+
+
+def _write_atomic(path, text):
+    """Writes `text` to `path` ATOMICALLY: writes to a `.tmp` and renames (os.replace is atomic on the
+    same filesystem). The app may be reading the raw/ folder at any moment -> it must never see a
+    half-written file. Best-effort: on failure, cleans up the .tmp and leaves no junk. Returns True
+    when the file landed (best-effort callers may ignore it)."""
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+        return True
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return False

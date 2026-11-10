@@ -12,7 +12,7 @@ code_anchors:
   - game/waves.py::wave_reduction
   - game/waves.py::read_stage_waves
   - game/build.py::read_runes
-  - meter_windows.py::write_drop_catalog
+  - game/attach.py::write_drop_catalog
   - config/offsets.py::StageInfoData.WAVE_AMOUNT
   - config/offsets.py::StageInfoData.WAVE_MOB_AMOUNT
 asserts:

@@ -10,6 +10,7 @@ symptoms:
 code_anchors:
   - config/offsets.py
   - meter_windows.py::close_run
+  - game/attach.py::prepare
   - game/models.py::live_monsters
   - game/models.py::live_monster_snapshot
   - game/save.py::read_gold
@@ -43,6 +44,15 @@ over the dump), bound for `archive/`. That one is "what CAN be read"; this is "w
 reads" — the full index of what can and can't be read is [[reference/value-inventory]].
 
 ---
+
+## BEFORE the run (attachment preparation)
+
+`game/attach.py::prepare` resolves classes/managers, reads the build catalogs, calibrates
+field offsets, and picks CSD/StageManager carriers. Its `AttachedState` also carries
+catalog instances, stage waves, and the gold klass/table/index handles. Startup and
+re-attach consume the same named state. PSD selection for each run and all baselines
+remain in `meter_windows.py::new_run`; periodic carrier refresh and gold self-heal
+remain run-local.
 
 ## DURING the run (read in the loop)
 

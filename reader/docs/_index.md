@@ -35,7 +35,7 @@ How it works and how to maintain it: [README](README.md).
 ## Invariants
 <!-- hard rules: break one = wrong data/crash -->
 
-- [[invariants/instance-selection]] — structural pick of the singleton (managers); avoids dead-list → runs that never close · `meter_windows.py`
+- [[invariants/instance-selection]] — structural pick of the singleton (managers); avoids dead-list → runs that never close · `game/attach.py`
 - [[invariants/schema-versioning]] — bump `RAW_SCHEMA_VERSION` (raw/<id>.json) + normalize app-side when adding a field; `SCHEMA_VERSION` is the frozen marker (11) of the legacy runs.jsonl · `meter_windows.py`
 - [[invariants/run-lifecycle]] — start via `LOG_LIST`; end by `StageClearLog`/`StageFailedLog`; skip <30s except `stage != 10`; partial = success + (<95% clear OR damage ≤ 0); boss box post-clear → pending-close; abandon/reload/stage-adoption rules + per-run kill/damage ledger → `RunBoundary` · `meter_windows.py` · `metrics/run_boundary.py`
 - [[invariants/orchestration-purity]] — `meter_windows.py` is a thin orchestrator (zero inline reads outside the scaffolding); new metric/capture → `metrics/` or `game/` · `meter_windows.py`
@@ -44,7 +44,7 @@ How it works and how to maintain it: [README](README.md).
 - [[invariants/gold-singleton-resolution]] — obfuscated singleton (`AggregateManager`, 2-letter name drifts ut→uu) resolves by STRUCTURE (2-value signature + backrefs + bbwf round-trip), never by name · `metrics/gold.py`
 - [[invariants/dict-strides]] — `DictFloat` (0x10/@0xC, 64 stats) vs `Dict8B` (0x18/@0x10, gold/aggregates); mixing them corrupts silently · `config/offsets.py`
 - [[invariants/metric-fallback-chains]] — chain LIVE→SAVE→never wallet/total; `run_gain` None when non-monotonic; source tag preserves the degradation · `metrics/gold.py`
-- [[invariants/cache-management]] — `CACHE_FMT` bumps when the calib shape changes; a bump requires re-capturing `config/calib_seed.json` or it falls into the cold scan · `meter_windows.py`
+- [[invariants/cache-management]] — `CACHE_FMT` bumps when the calib shape changes; a bump requires re-capturing `config/calib_seed.json` or it falls into the cold scan · `game/attach.py`
 - [[invariants/log-event-detection]] — event by KLASS-POINTER, never the `ELogType` field (stripped from IL2CPP); new event → `TARGETS` + klass in the cache · `meter_windows.py`
 - [[invariants/memory-safety]] — read-only (`PROCESS_VM_READ`); null-guard every deref; `ri32`/`ri64` → None on a bad read; cap on iteration; never inject · `shared/memory.py`
 - [[invariants/obscured-data-offlimits]] — never read Obscured (XOR = garbage): core stats `@CORE_STATS_OBSCURED`, `@CACHE_OBSCURED`; hero class = `EEquipClassType`, never `EHeroType` (orphan) · `config/offsets.py`

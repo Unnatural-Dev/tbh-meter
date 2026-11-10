@@ -1,6 +1,6 @@
 ---
 type: invariant
-description: "meter_windows.py is a thin ORCHESTRATOR: no inline memory reads outside the scaffolding (log-event loop, manager validation, re-attach); a new metric/capture lives in metrics/ or game/, offsets only in config.offsets. agent_windows.py is the SIBLING debug entry-point, self-contained."
+description: "meter_windows.py is a thin ORCHESTRATOR: no inline memory reads outside the scaffolding (log-event loop, re-attach); a new metric/capture lives in metrics/ or game/, offsets only in config.offsets. agent_windows.py is the SIBLING debug entry-point, self-contained."
 symptoms:
   - "where to put a new metric"
   - "where to add a new capture"
@@ -15,11 +15,17 @@ symptoms:
 code_anchors:
   - meter_windows.py
   - meter_windows.py::run
-  - meter_windows.py::_pick_list_singleton
+  - game/attach.py::_pick_list_singleton
+  - game/attach.py::prepare
+  - game/attach.py::AttachedState
   - metrics/run_boundary.py::RunBoundary
   - agent_windows.py
   - agent_windows.py::op_dump
 guarded_by:
+  - tests/test_attach.py::test_fast_path_prepares_carriers_and_catalogs_without_scan
+  - tests/test_attach.py::test_incomplete_resolution_returns_none_without_calibration
+  - tests/test_attach.py::test_startup_only_gold_recheck_and_diagnostics
+  - tests/test_attach.py::test_two_prepares_keep_their_own_catalog_instances
   - tests/test_run_lifecycle_predicates.py::TestIsPartial::test_zero_damage_success_is_always_partial
 ---
 
@@ -45,6 +51,15 @@ come **only** from `config.offsets` (the "bible"). Therefore: **a NEW metric or 
 `metrics/` or `game/`, NEVER inline in `run()`.** And **no literal offset** (`0x…`) in
 `meter_windows.py` — it imports the symbol from `config.offsets`.
 
+## Attachment preparation
+
+`game/attach.py::prepare` owns resolution, structural manager validation, field calibration,
+carrier picks and their diagnostics, gold handles, and catalog export. It returns a frozen
+`AttachedState`, or `None` for incomplete essential managers/log classes. Startup and re-attach
+use the same seam. PR-1 intentionally retains the startup-only gold re-check and extra
+save/gold/ghost diagnostics; making re-attach match startup is a separate PR-2 change.
+`run()` owns searching/ready markers, retries, and all per-run state.
+
 ## What "scaffolding" is (the legitimate exception)
 
 Inline memory reads (`reader.rptr`/`ri32`/`ri64`/`read_string`) IN `meter_windows.py` are only
@@ -55,9 +70,6 @@ no one else's:
   classifies every entry by its K-class (`StageClearLog`/`StageFailedLog`/`GetBoxLog`/`HeroDieLog`/
   `ResurrectionLog`) to fire `close_run`/drops/deaths/revives. This IS lifecycle orchestration —
   see [[invariants/run-lifecycle]] (and log-event detection).
-- **Structural manager validation** (`_pick_list_singleton`/`_valid_list_size`): pick the live
-  `LogManager`/`MonsterSpawnManager` instance out of the scan's false positives — see
-  [[invariants/instance-selection]].
 - **Re-attach / stage-reload detection**: read `LOG_LIST`/`DeadMonsterUnit` to learn that the game
   closed (reads failing) or the stage reloaded. Only the READ is scaffolding: what a dropped count
   MEANS (the reload rule, the stage-switch rule, adoption, the per-run kill/damage ledger) is decided
@@ -75,7 +87,7 @@ game's memory, which doesn't run on Mac), the offset **drifts out of sync** with
 and the orchestrator bloats to the point where nobody understands the lifecycle anymore.
 
 Proof the boundary works: **the pure decisions the orchestrator legitimately owns are extracted as
-pure functions and tested in isolation** — `_should_skip_run`, `_is_partial`, `_pick_list_singleton`,
+pure functions and tested in isolation** — `_should_skip_run`, `_is_partial`; in `game/attach.py`, `_pick_list_singleton`,
 `_read_catalogs` (touching no process at all, they run on Mac via `MockReader`), plus `RunBoundary`
 (run-end rules + ledger, fed by the loop). That's exactly how
 the `_is_partial` drift (the note said `== 0`, the code is `total_damage <= 0`) got **covered by a
@@ -85,12 +97,12 @@ wrong place — move it to `metrics/` or `game/`.
 **Where to put the new thing:**
 - new derived metric (damage/dps/xp/gold/progress) → `metrics/` (it receives the `reader` and reads there).
 - new domain data (save/party/build/monsters/stage-key) → `game/`.
-- new class/instance to resolve → `il2cpp/resolver` (and the orchestrator's `TARGETS`/fast-path).
+- new class/instance to resolve → `il2cpp/resolver` (and `game/attach.py`'s `TARGETS`/fast-path).
 - new offset → **only** `config.offsets`; `meter_windows.py` imports the symbol.
 - `meter_windows.py` then **calls** the new function and stitches the result into the `rec`/overlay.
 
 ## Related
 - [[invariants/offsets-single-source]] — the orchestrator imports an offset, never hardcodes `0x…`.
-- [[invariants/instance-selection]] — manager validation is the legitimate scaffolding.
+- [[invariants/instance-selection]] — manager validation lives in `game/attach.py`.
 - [[invariants/run-lifecycle]] — the log-event loop is lifecycle orchestration.
 See also: [[invariants/log-event-detection]] (how the loop classifies each entry by K-class) · [[invariants/metric-fallback-chains]] (the new metric comes in with its fallback chain) · [[invariants/memory-safety]] (the never-raises reader the scaffolding assumes) · [[guides/map-new-value]]/[[guides/add-runs-field]] (the end-to-end recipe for a "new value") · [[invariants/obscured-data-offlimits]] (agent_windows op_obs is the only place that decodes ObscuredX)

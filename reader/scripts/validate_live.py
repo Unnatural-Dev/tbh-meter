@@ -38,6 +38,7 @@ validate_live_out.txt next to the file. Does NOT write to the game or the real r
 import math
 import os
 import sys
+import tempfile
 import time
 
 # Force UTF-8 on stdout/stderr so a diagnostic glyph (e.g. "↳") never crashes print() on a Windows
@@ -62,6 +63,7 @@ if _reader_root is None:
 sys.path.insert(0, _reader_root)
 
 import meter_windows as mw                                       # noqa: E402
+from game import attach                                         # noqa: E402
 from shared.memory import Reader, find_pid, open_process         # noqa: E402
 from il2cpp import typeinfo                                      # noqa: E402
 from metrics import gold                                         # noqa: E402
@@ -167,16 +169,30 @@ def main():
         os.remove(tmp_cache)
     except OSError:
         pass
-    seed_calib = mw.load_calib(tmp_cache, fp)   # empty tmp -> only hits if the embedded SEED covers the fp
+    seed_calib = attach.load_calib(tmp_cache, fp)   # empty tmp -> only hits if the embedded SEED covers the fp
     log("[..] resolving via the seed (fast path, ~s)...")
     t0 = time.time()
-    (sc, sf, msm, lm, csd_list, psd_list, stage_info, item_cat, hero_cat,
-     sm_list, gold_klass, gb, die, res) = mw.resolve_all(reader, pid, fp, tmp_cache)
+    # Preparation also exports a drop catalog; keep that validation artifact temporary.
+    with tempfile.TemporaryDirectory(prefix="tbh-validate-attach-") as output_dir:
+        attached = attach.prepare(reader, pid, fp, tmp_cache, output_dir, gv or mw.GAME_VERSION,
+                                  startup=True)
     try:
         os.remove(tmp_cache)
     except OSError:
         pass
     log(f"[ok] resolved in {time.time() - t0:.0f}s\n")
+
+    # Incomplete preparation still flows through the same FAIL checks, never a false PASS.
+    msm = attached.msm if attached else None
+    lm = attached.lm if attached else None
+    psd_list = attached.psd_list if attached else []
+    sm_list = attached.sm_list if attached else []
+    stage_info = attached.stage_info if attached else {}
+    item_cat = attached.item_cat if attached else {}
+    hero_cat = attached.hero_cat if attached else {}
+    gold_klass = attached.gold_klass if attached else None
+    sm = attached.sm if attached else None
+    csd = attached.csd if attached else None
 
     checks = []  # (name, ok, detail)
 
@@ -194,7 +210,6 @@ def main():
     # The party IDENTITY is read LIVE and gated on hero_cat (the ghost discriminator since 1.00.20 — the
     # ACTk live level decoy died, so the old lvl>0 gate would reject every real hero). Level/exp are
     # decoded live inside read_live_party; save_heroes is passed for the level fallback on a bad decode.
-    sm = save.pick_live_sm(reader, sm_list, hero_cat)
     save_heroes_live = save.read_heroes(reader, save.pick_live_psd(reader, psd_list))
     party = build.read_live_party(reader, sm, hero_cat, save_heroes_live) if sm else {}
     checks.append(("party-live", bool(sm) and 1 <= len(party) <= 12,
@@ -330,7 +345,6 @@ def main():
     # is surfaced for diagnostics but the LIVE key is what gates — never validate the stale snapshot in
     # isolation (that is what made this check spuriously red on a correctly-calibrated 1.00.17 seed).
     live_sk = win["stage_key"] if win else None
-    csd = save.pick_live_csd(reader, csd_list, stage_info)
     snap = reader.ri32(csd + CommonSaveData.CURRENT_STAGE_KEY) if csd else None
     live_ok = bool(win and win["stage_ok"])
     checks.append(("stage", bool(stage_info) and live_ok,
