@@ -43,7 +43,7 @@ from metrics.gold import (resolve_combat_gold_klass, combat_gold_klass_ok,
                           resolve_combat_gold_klass_by_index, gold_index_of_klass,
                           gold_index_by_structure)
 from metrics import xp
-from metrics.dps import DpsTracker
+from metrics.run_boundary import RunBoundary
 from game import build, save, drops, waves
 from game.models import live_monster_snapshot as read_live_monsters, live_stage_key as read_live_stage_key
 
@@ -1096,8 +1096,9 @@ def run(hz, output_dir, debug=False):
         # endpoint delta (exp_start only at t=0) gave a hero outside the baseline.
         xpacc = xp.PartyXpAccumulator()
         xpacc.update(pl0)
-        return {"dps": DpsTracker(), "mobs": 0, "start": time.time(),
-                "gold_start": save.read_gold(reader, p) or 0,
+        # The per-run kill/damage ledger, start time and stage adoption are NOT in this dict: they live in
+        # `rb` (metrics.run_boundary.RunBoundary), which close_run / the re-attach restart alongside new_run.
+        return {"gold_start": save.read_gold(reader, p) or 0,
                 # LIVE combat-gold baseline at the START (delta at close = the run's gold).
                 # + the save baseline as fallback (if the live one doesn't resolve). All via gold.py.
                 "gold_live_start": combat_gold_live(reader, gold_klass),
@@ -1119,9 +1120,9 @@ def run(hz, output_dir, debug=False):
                 "deaths": {}, "revives": {}, "killers": {},
                 # Waves removed by the account's Rune of Brevity nodes (game.waves) — read ONCE per run
                 # (runes only change between runs); feeds the real mob total at close + in live.json.
-                "wave_reduction": waves.wave_reduction(build.read_runes(reader, p)),
-                "stage_key": None, "adopt_until": time.time() + 3.0}
+                "wave_reduction": waves.wave_reduction(build.read_runes(reader, p))}
 
+    rb = RunBoundary(time.time())
     R = new_run()
     # run_num is NOT reset here — it's resumed from resume_session (above) so as not to recycle an id.
 
@@ -1140,7 +1141,6 @@ def run(hz, output_dir, debug=False):
     log_cursor = LogScanCursor()
     _seed_read, _seed_size = _loglist_size_reader()
     log_cursor.seed(_seed_read, _seed_size, LOG_SCAN_CAP)
-    prev_dead = None    # previous DeadMonsterUnit size (to detect a stage reload)
     bad_snaps = 0       # consecutive invalid monster snapshots (diag once if sustained)
     dead_reads = 0      # consecutive failing reads = game closed/restarted (re-attach)
     last_snap = 0.0
@@ -1198,7 +1198,9 @@ def run(hz, output_dir, debug=False):
             else:
                 wave_now = reader.ri32(e + StageFailedLog.NOW_WAVE)
                 wave_tot = reader.ri32(e + StageFailedLog.TOTAL_WAVE)
-        measured = time.time() - R["start"]
+        # Freeze the run's ledger (kills/damage/duration) and start the next one (rb.close).
+        ended = rb.close(time.time())
+        measured = ended.measured
         # The reader emits EVERY run — short/partial included ("skip ≠ vanish", otherwise the user thinks the
         # meter broke). What decides what COUNTS (15s floor exc. x-10) is the CONVERTER (app), applying
         # _should_skip_run over this record's RAW fields — that's why the reader NO LONGER calls it here
@@ -1225,7 +1227,7 @@ def run(hz, output_dir, debug=False):
         # (boss, seconds) are never mis-flagged. EXCEPTION to the exception: a success with ZERO measured
         # damage is always a missed capture (the game doesn't clear a stage with no damage) — covers the gap of x-10s
         # with clear <30s, which skipped the check and recorded all-zero runs (#163).
-        partial = _is_partial(status, clear_time, measured, R["dps"].total_damage)
+        partial = _is_partial(status, clear_time, measured, ended.damage)
         # save-side xp (fallback only): per-hero HeroExp delta (already includes runes/items/bonuses).
         # HeroExp zeroes on level-up -> the gain of whoever levels up is underestimated (rare for a high-level
         # hero). At the CAP HeroExp also NEVER resets (no level-up to consume it) -> the save delta
@@ -1331,7 +1333,7 @@ def run(hz, output_dir, debug=False):
             hh["slot"] = slot_by_hero.get(hh["heroKey"])
         heroes_out = build.order_party_by_slot(heroes_out)
         ref = clear_time if clear_time else max(measured, 1)
-        total_damage = R["dps"].total_damage
+        total_damage = ended.damage
         dps = total_damage / ref
         def _hxp(h):
             return fmt(h.get("xp_gained", 0.0)) + ("⇧lvl" if h.get("levelup") else "")
@@ -1355,7 +1357,7 @@ def run(hz, output_dir, debug=False):
         party_warn = " ⚠party unavailable(live off)" if party_degraded else ""
         summary = (f"{mark} run #{run_num} [{status.upper()}]  Stage {act}-{stage} [{mode}]  "
                    f"{head}  DPS {fmt(dps)}/s  damage {fmt(total_damage)}  deaths {n_deaths}  "
-                   f"mobs {R['mobs']}/{total or '?'}  "
+                   f"mobs {ended.kills}/{total or '?'}  "
                    f"gold +{fmt(gold_gain)}[{ge_src}]  xp +{fmt(xp_best)}[{xp_src}]  "
                    f"party{party_warn} [{party}]")
         print("\n" + summary)   # goes to meter.log (event log) — not the app's source
@@ -1380,7 +1382,7 @@ def run(hz, output_dir, debug=False):
             game_version=game_version, duration=measured,
             stage_key=stage_key, act=act, stage_no=stage,
             difficulty=(si[3] if si else None), total_mobs=total,
-            mobs=R["mobs"], total_damage=total_damage, clear_time=clear_time,
+            mobs=ended.kills, total_damage=total_damage, clear_time=clear_time,
             gold=gold_gain, gold_ok=gold_ok, gold_source=ge_src,
             xp_gained=xp_best, xp_ok=xp_ok, xp_source=xp_src,
             drops=R["drops"], heroes=heroes_out, heroes_ok=(not party_degraded),
@@ -1475,13 +1477,14 @@ def run(hz, output_dir, debug=False):
                                     idx_ut = _cr["idx_ut"]
                                 else:
                                     tbase = idx_ut = None
+                                rb.restart(time.time())   # stamp the run start before new_run's reads, as at start-up
                                 R = new_run()
                                 # Re-seed the boundary cursor to the NEW lm's current tail (the old
                                 # ga_base/instance is dead after re-attach): skip the backlog so the
                                 # interrupted run's history isn't replayed as clears.
                                 _rs_read, _rs_size = _loglist_size_reader()
                                 log_cursor.seed(_rs_read, _rs_size, LOG_SCAN_CAP)
-                                prev_dead = None
+                                rb.reset_dead_baseline()
                                 cur_key = reader.ri32(csd + CommonSaveData.CURRENT_STAGE_KEY) if csd else None
                                 dead_reads = 0
                                 print(f"[ok] re-attached (game version {game_version}"
@@ -1492,11 +1495,10 @@ def run(hz, output_dir, debug=False):
                     time.sleep(3)
                 continue
             # Orchestrated DPS: reads the mobs in a BATCH (game.models.live_monster_snapshot) and
-            # delegates to metrics.dps.DpsTracker — damage = Σ HP drop + finishing blow, the 5s window
-            # and total live in the tracker (reset per run via new_run). Here only what's the
-            # meter's: the smoothed DPS for the screen. Kills = monster identities the run's tracker
-            # saw die (invalid snapshots skipped; a fresh tracker per run, so no cross-run baseline).
-            dps_t = R["dps"]
+            # delegates to metrics.run_boundary.RunBoundary (its DpsTracker) — damage = Σ HP drop +
+            # finishing blow, the 5s window and total live in the tracker (a fresh one per run, via
+            # rb.close). Here only what's the meter's: the smoothed DPS for the screen. Kills =
+            # monster identities the run's tracker saw die (invalid snapshots skipped).
             _snap = read_live_monsters(reader, msm)
             if _snap is None:
                 bad_snaps += 1
@@ -1505,9 +1507,10 @@ def run(hz, output_dir, debug=False):
                          "— DPS/kills frozen until reads recover")
             else:
                 bad_snaps = 0
-            dps_t.update(_snap, now)
-            R["mobs"] = dps_t.total_kills
-            dps_live = dps_t.dps(now)
+            rb.observe_monsters(_snap, now)
+            dps_live = rb.dps(now)
+            # Damage shown on this tick's live line: captured BEFORE any close below, which starts a new ledger.
+            damage_live = rb.damage
 
             if now - last_refresh >= REFRESH:
                 c = save.pick_live_csd(reader, csd_list, stage_info)
@@ -1531,9 +1534,7 @@ def run(hz, output_dir, debug=False):
             # Manual RESTART of the SAME stage: DeadMonsterUnit is cumulative and DROPS when the
             # stage reloads on a manual restart. Clear/auto-replay do NOT zero it (they log separately).
             dead_now = reader.ri32((reader.rptr(msm + MonsterSpawnManager.DEAD_MONSTER_LIST) or 0) + List.SIZE)
-            reloaded = (prev_dead is not None and dead_now is not None and dead_now < prev_dead - 2)
-            if dead_now is not None:
-                prev_dead = dead_now
+            rb.observe_dead_count(dead_now)   # the reload rule (count dropped by > 2) lives in the module
 
             # close by LOG: StageClearLog (success) or StageFailedLog (fail). Detection of which
             # entries are NEW is rotation-aware (LogScanCursor, by OBJECT POINTER): the LOG_LIST is
@@ -1603,19 +1604,14 @@ def run(hz, output_dir, debug=False):
                 flush_pending()
 
             # adopt the stage during the initial grace (handles auto-replay/advance post-clear)
-            if cur_key is not None and cur_key in stage_info and (
-                    R["stage_key"] is None or now < R["adopt_until"]):
-                R["stage_key"] = cur_key
+            rb.observe_stage(cur_key, cur_key in stage_info, now)
             # END by RESTART/switch without clear/fail: dead dropped (reload of the same stage) OR
             # bceo changed (stage switch). Once the grace is past, abandon the partial and restart.
-            if not closed and now >= R["adopt_until"] and R["stage_key"] is not None:
-                switched = (cur_key is not None and cur_key in stage_info
-                            and cur_key != R["stage_key"])
-                if reloaded or switched:
-                    close_run("abandoned", R["stage_key"])
+            if not closed and rb.should_abandon(cur_key, cur_key in stage_info, now):
+                close_run("abandoned", rb.stage_key)
 
-            elapsed = int(now - R["start"])
-            mtxt = f"{R['mobs']}/{total_mobs}" if total_mobs else str(R["mobs"])
+            elapsed = int(rb.elapsed(now))
+            mtxt = f"{rb.kills}/{total_mobs}" if total_mobs else str(rb.kills)
             # Per-tick live line (~hz/s). The app's overlay reads live.json (written
             # just below), NOT this stdout stream, and the reader runs hidden — so by
             # default this would only bloat meter.log. Emit it ONLY under --debug; that
@@ -1623,7 +1619,7 @@ def run(hz, output_dir, debug=False):
             if debug:
                 sys.stdout.write(
                     f"\rrun #{run_num}  Stage {stage_lbl} [{mode_txt}]  mobs {mtxt}  "
-                    f"DAMAGE {fmt(dps_t.total_damage)}  DPS {fmt(dps_live)}/s  [{elapsed}s]   ")
+                    f"DAMAGE {fmt(damage_live)}  DPS {fmt(dps_live)}/s  [{elapsed}s]   ")
                 sys.stdout.flush()
             if now - last_snap >= 1.0:
                 # "New session" is app-side now (Redesign 2): the app writes a cut in session-cuts.json
@@ -1702,8 +1698,8 @@ def run(hz, output_dir, debug=False):
                     act=_si_live[0] if _si_live else None,
                     stage_no=_si_live[1] if _si_live else None,
                     difficulty=_si_live[3] if _si_live else None,
-                    mobs=R["mobs"], total_mobs=total_mobs,
-                    damage_now=dps_t.total_damage, elapsed=elapsed,
+                    mobs=rb.kills, total_mobs=total_mobs,
+                    damage_now=damage_live, elapsed=elapsed,
                     gold_now=g_gain, xp_now=x_gain,
                     party=party_keys, drops=[dc[0], dc[1], dc[2]],
                     party_stats=live_stats,
