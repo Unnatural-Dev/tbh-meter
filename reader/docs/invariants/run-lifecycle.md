@@ -68,6 +68,7 @@ guarded_by:
   - tests/test_run_wiring.py::test_anomaly_dump_flag_writes_the_ticks_of_an_overcounted_success
   - tests/test_run_wiring.py::test_without_the_flag_nothing_is_written_and_records_are_unchanged
   - tests/test_anomaly_dump.py::test_unknown_values_never_trigger
+  - tests/test_anomaly_dump.py::test_metadata_errors_still_count_published_archives_toward_the_cap
 ---
 
 # Run lifecycle
@@ -145,7 +146,8 @@ invalid), the raw live stage key, the dead count, and the log classes that close
 memory read. On each run close `trigger_reason` judges a SUCCESS: `mobs > total_mobs`, or `duration - clear_time > 5`
 (both known; an unknown input never triggers). A hit writes `<output>/anomalies/<run_id>.ticks.jsonl.gz` (the ring,
 which keeps rolling) plus `<run_id>.json` (outcome, counts, reason, reader version, hz). Capped per process
-(`MAX_DUMPS`); every I/O error is logged via `diag()` and swallowed. Pure module fed by `run()` — the rule lives
+(`MAX_DUMPS`): each published archive consumes a slot even if its summary fails to write.
+Every I/O error is logged via `diag()` and swallowed. Pure module fed by `run()` — the rule lives
 there, not inline ([[invariants/orchestration-purity]]); the flag never changes `raw/<id>.json`.
 
 ## Pending-close: the boss box arrives AFTER the clear (only the success WRITE is delayed)
