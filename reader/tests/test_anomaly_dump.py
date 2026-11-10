@@ -1,4 +1,4 @@
-"""metrics/anomaly_dump.py: the opt-in (--anomaly-dump) ring of the last ~60 s of ticks and the rules that
+"""metrics/anomaly_dump.py: the opt-in (--anomaly-dump) ring of the last ~6 min of ticks and the rules that
 decide when a closed run leaves it on disk. Pure module: no memory reads, no meter_windows import."""
 import glob
 import gzip
@@ -14,13 +14,13 @@ def _ticks(path):
         return [json.loads(line) for line in f if line.strip()]
 
 
-def test_ring_keeps_only_the_last_sixty_seconds_of_ticks_at_the_configured_hz(tmp_path):
+def test_ring_keeps_only_the_last_six_minutes_of_ticks_at_the_configured_hz(tmp_path):
     ad = AnomalyDump(hz=2, out_dir=str(tmp_path))
-    for i in range(500):
+    for i in range(1000):
         ad.observe_tick(1000.0 + i * 0.5, [(i, 10.0, 20.0)], 7, i)
     ticks = ad.ticks()
-    assert len(ticks) == 120                                   # ceil(60 * 2)
-    assert ticks[0]["dead"] == 380 and ticks[-1]["dead"] == 499   # oldest evicted first
+    assert len(ticks) == 720                                   # ceil(360 * 2)
+    assert ticks[0]["dead"] == 280 and ticks[-1]["dead"] == 999   # oldest evicted first
 
 
 def test_tick_stores_what_the_loop_already_read_as_plain_json_values(tmp_path):

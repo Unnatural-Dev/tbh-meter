@@ -1,4 +1,4 @@
-"""Anomaly dump — an opt-in black box: the last ~60 s of ticks, written to disk only for a suspicious run.
+"""Anomaly dump — an opt-in black box: the last ~6 min of ticks, written to disk only for a suspicious run.
 
 Why: a run whose kill count exceeds the stage's mob total (or whose measured duration runs well past the
 game's own clear time) can only be understood from the tick-by-tick monster snapshots around it, and by
@@ -21,7 +21,8 @@ from collections import deque
 
 from shared.utils import diag
 
-RING_SECONDS = 60        # how much history a dump carries
+RING_SECONDS = 360       # a whole run (~140 s; the +510 one was 292 s) PLUS the boundary before it:
+                         # post-fail leftovers vanish 4-10 s after the fail, so a short ring loses the cause
 MAX_DUMPS = 20           # per process: a runaway reader must not fill the disk
 
 CLEAR_TIME_SLACK = 5     # seconds the measured duration may run past the game's own clear time

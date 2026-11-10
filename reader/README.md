@@ -63,7 +63,7 @@ python meter_windows.py        # on Windows, with the game open. Output in ~/tbh
 
 ### Anomaly dump (diagnostics, opt-in)
 
-`python meter_windows.py --anomaly-dump` keeps the last ~60 s of per-tick data the reader already reads (monster
+`python meter_windows.py --anomaly-dump` keeps the last ~6 min of per-tick data the reader already reads (monster
 snapshot, live stage key, dead count, closing log classes) in memory. When a run closes as a success with
 `mobs > total_mobs`, or with `duration - clear_time > 5` s, that window is written to
 `<output>/anomalies/<run_id>.ticks.jsonl.gz` with a `<run_id>.json` summary, so an overcount can be diagnosed

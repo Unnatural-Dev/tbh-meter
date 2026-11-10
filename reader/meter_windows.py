@@ -1125,7 +1125,7 @@ def run(hz, output_dir, debug=False, anomaly_dump=False):
                 "wave_reduction": waves.wave_reduction(build.read_runes(reader, p))}
 
     rb = RunBoundary(time.time())
-    # Opt-in (--anomaly-dump): a ring of the last ~60 s of ticks, written only for an overcounted run.
+    # Opt-in (--anomaly-dump): a ring of the last ~6 min of ticks (a whole run + the boundary before it), written only for an overcounted run.
     # Fed from values the loop already reads; None (the default) leaves every code path untouched.
     anomaly = AnomalyDump(hz, output_dir, reader_version=describe_reader_version()) if anomaly_dump else None
     R = new_run()
@@ -1763,7 +1763,7 @@ def main():
                          "reader runs hidden, so this is only useful when you run the "
                          "reader in a terminal yourself to debug.")
     ap.add_argument("--anomaly-dump", action="store_true",
-                    help="DEV/diagnostic: keep the last ~60 s of ticks in memory and, when a run closes "
+                    help="DEV/diagnostic: keep the last ~6 min of ticks in memory and, when a run closes "
                          "suspicious (success with mobs > total, or duration > clear time + 5 s), write them "
                          "to <output>/anomalies/<run_id>.ticks.jsonl.gz (+ .json). Off by default; reads nothing new.")
     ap.add_argument("--instance-tag", metavar="NAME", type=_instance_tag, default=None,

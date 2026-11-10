@@ -136,7 +136,7 @@ A new end-of-run rule goes in the module (pure, testable), not inline in `run()`
 
 ## Anomaly dump (opt-in diagnostics): `metrics/anomaly_dump.py::AnomalyDump`
 
-`--anomaly-dump` (default OFF, the app never passes it) keeps a bounded ring — `ceil(60 * hz)` ticks — of what
+`--anomaly-dump` (default OFF, the app never passes it) keeps a bounded ring — `ceil(360 * hz)` ticks: a whole run plus the boundary before it — of what
 the loop ALREADY reads each tick: time, the monster snapshot (`[addr, hp, hp_max]`, `[]` between waves, `None` if
 invalid), the raw live stage key, the dead count, and the log classes that closed a run on that tick. It adds NO
 memory read. On each run close `trigger_reason` judges a SUCCESS: `mobs > total_mobs`, or `duration - clear_time > 5`
