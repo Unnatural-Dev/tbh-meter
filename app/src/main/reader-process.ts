@@ -131,8 +131,9 @@ function statusFromLine(line: string): ReaderStatus | null {
     return "ready";
   // "resolving classes/instances" is the SLOW value-scan -> its own "scanning" phase.
   if (line.includes("resolving classes/instances")) return "scanning";
-  if (line.startsWith("[ok] attached")) return "resolving";
-  if (line.includes("game is not open")) return "searching";
+  if (line.startsWith("[ok] attached") || line.startsWith("[re-attaching]")) return "resolving";
+  if (line.includes("game is not open") || line.startsWith("[game closed/restarted]"))
+    return "searching";
   return null;
 }
 

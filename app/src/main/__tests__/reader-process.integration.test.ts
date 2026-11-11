@@ -189,6 +189,61 @@ describe("reader supervisor — preparation stdout contract", () => {
     expect(mod.getReaderStatus()).toBe(contract.status);
   });
 
+  describe.each([false, true])("reattachment (cold scan: %s)", (coldScan) => {
+    it.each(Object.entries(attachmentStatus))(
+      "%s clears stale readiness through recovery",
+      (_case, contract) => {
+        mod.startReader();
+        const child = lastChild();
+        child.stdout.emit("data", Buffer.from("[[STATUS]] ready\n"));
+        expect(mod.getReaderStatus()).toBe("ready");
+        const phases: string[] = [];
+        mod.readerEvents.on("status", (phase: string) => phases.push(phase));
+
+        // These lifecycle lines are emitted by meter_windows.run() around prepare().
+        child.stdout.emit(
+          "data",
+          Buffer.from(
+            "\n[game closed/restarted] reads failing — discarding run, re-attaching...\n",
+          ),
+        );
+        expect(mod.getReaderStatus()).toBe("searching");
+        vi.advanceTimersByTime(18_000); // no new process or output while the game is closed
+        expect(mod.getReaderStatus()).toBe("searching");
+        expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+        child.stdout.emit(
+          "data",
+          Buffer.from("[re-attaching] game came back (pid 2), re-resolving (~1-2min)...\n"),
+        );
+        expect(mod.getReaderStatus()).toBe("resolving");
+        if (coldScan) {
+          child.stdout.emit("data", Buffer.from("[[STATUS]] scanning\n"));
+          expect(mod.getReaderStatus()).toBe("scanning");
+        }
+
+        // Shared transcripts are checked against real prepare() output by Python.
+        // Incomplete/error preparation must never revive the previous ready state.
+        const pendingPhase = coldScan ? "scanning" : "resolving";
+        const lines = contract.stdout.split("\n").filter(Boolean);
+        lines.forEach((line, index) => {
+          child.stdout.emit("data", Buffer.from(`${line}\n`));
+          expect(mod.getReaderStatus()).toBe(
+            index === lines.length - 1 && contract.status === "ready" ? "ready" : pendingPhase,
+          );
+        });
+        expect(mod.getReaderStatus()).toBe(contract.status === "ready" ? "ready" : pendingPhase);
+        expect(phases).toEqual([
+          "searching",
+          "resolving",
+          ...(coldScan ? ["scanning"] : []),
+          ...(contract.status === "ready" ? ["ready"] : []),
+        ]);
+        expect(mockSpawn).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
+
   it.each([
     "[ok] resolved in 3s. stages=1 items-catalog=1 heroes-catalog=1 PSD=1 CSD=1.",
     "Measuring per run",
