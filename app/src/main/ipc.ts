@@ -112,12 +112,12 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle("meter:chest-planner-inputs", () => loadChestPlannerInputs(resolveOutputDir(), listRuns()));
   ipcMain.handle("meter:get-run", (_event, id: string) => getRun(id));
   ipcMain.handle("meter:clear-runs", () => clearAllRuns());
-  // Favorite toggle (Feature 3): flip the sidecar flag, then reload the source so its index
-  // re-projects `favorite` and broadcasts runs-changed — every window re-renders the star + any
-  // "favorites only" filter. Returns the new state to the caller for an optimistic UI flip.
+  // Favorites are projected from the sidecar on each listIndex() call, so changing a star
+  // needs no history reload. Keep the normal change notification and pruning path: un-starring
+  // a run can put the non-favorite count over the cap.
   ipcMain.handle("meter:toggle-favorite", (_event, runId: unknown) => {
     const now = toggleFavorite(runId);
-    getRunsSource().reloadNow();
+    getRunsSource().emit("changed");
     return now;
   });
 

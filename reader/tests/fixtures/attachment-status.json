@@ -1,0 +1,22 @@
+{
+  "incomplete": {
+    "stdout": "[calib] fast path PSD/CSD/StageManager backref in 0.0s (PSD=1 CSD=1 SM=1)\n[calib] fast path (fp attachment-test-build) — resolved via RVA, no scan\n[field-calib] Monster.STAGE_KEY: kept static 0x410 (signature not found live)\n[field-calib] UnitHealthController.HP_MAX: kept static 0x50 (signature not found live)\n",
+    "status": "resolving"
+  },
+  "resolution-error": {
+    "stdout": "",
+    "status": "resolving"
+  },
+  "carrier-error": {
+    "stdout": "[calib] fast path PSD/CSD/StageManager backref in 0.0s (PSD=1 CSD=1 SM=1)\n[calib] fast path (fp attachment-test-build) — resolved via RVA, no scan\n[field-calib] Monster.STAGE_KEY: kept static 0x410 (signature not found live)\n[field-calib] UnitHealthController.HP_MAX: kept static 0x50 (signature not found live)\n",
+    "status": "resolving"
+  },
+  "gold-error": {
+    "stdout": "[calib] fast path PSD/CSD/StageManager backref in 0.0s (PSD=1 CSD=1 SM=1)\n[calib] fast path (fp attachment-test-build) — resolved via RVA, no scan\n[field-calib] Monster.STAGE_KEY: kept static 0x410 (signature not found live)\n[field-calib] UnitHealthController.HP_MAX: kept static 0x50 (signature not found live)\n[live party] StageManager ok — 1 heroes deployed.\n",
+    "status": "resolving"
+  },
+  "complete": {
+    "stdout": "[calib] fast path PSD/CSD/StageManager backref in 0.0s (PSD=1 CSD=1 SM=1)\n[calib] fast path (fp attachment-test-build) — resolved via RVA, no scan\n[field-calib] Monster.STAGE_KEY: kept static 0x410 (signature not found live)\n[field-calib] UnitHealthController.HP_MAX: kept static 0x50 (signature not found live)\n[live party] StageManager ok — 1 heroes deployed.\n[live gold] AggregateManager klass 0x900000 — GoldEarn[SubKey1] live (exact per-run, lag-free, excludes selling; immune to name drift)\n[ok] resolved in 0s. stages=1 items-catalog=1 heroes-catalog=1 PSD=1 CSD=1.\n\n",
+    "status": "ready"
+  }
+}

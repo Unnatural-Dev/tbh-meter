@@ -798,7 +798,7 @@ export class RunsSource extends EventEmitter {
     // Legacy v1 runs keep their original sessionId. Pure + deterministic -> stable across reloads.
     const v2 = records.filter((r) => r.sessionId === "");
     if (v2.length > 0) {
-      const derived = deriveSessions(v2.map((r) => ({ id: r.id, ts: r.ts })), readSessionCuts(this.dir));
+      const derived = deriveSessions(v2, readSessionCuts(this.dir));
       for (const r of v2) {
         const sid = derived.get(r.id);
         if (sid !== undefined) r.sessionId = sid;

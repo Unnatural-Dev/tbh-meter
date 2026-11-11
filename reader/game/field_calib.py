@@ -7,10 +7,10 @@ metadata — the documented blind spot. Historically each update required a huma
 and hand-patch config/offsets.py (1.00.14, 1.00.27, 1.2.8, 1.3.0...).
 
 This module DISCOVERS those four offsets at attach time by SEMANTIC SIGNATURE — what the field
-CONTAINS, not where it sits — then applies them in-memory over the static offsets, which remain the
-fallback. It piggybacks on structures the resolver already produced (msm, sm_list, hero_cat,
-stage_info), so it adds no scan. If a signature can't be found live (e.g. not in combat), the static
-offset is kept and nothing is overwritten — so this NEVER makes a working build worse.
+CONTAINS, not where it sits — then applies them in-memory over the current offset values, which remain
+the per-field fallback. These may be discoveries from an earlier attachment, not disk defaults.
+It piggybacks on structures the resolver already produced (msm, sm_list, hero_cat, stage_info), so it
+adds no scan. Any exception, including diagnostic emission, restores all four entry values.
 
 The four signatures:
   Monster.STAGE_KEY          — the int32 on a live monster whose value is a key in stage_info, ONE key
@@ -221,37 +221,40 @@ def _wait_for_monsters(reader, msm, sleep):
 
 
 def calibrate(reader, msm, sm_list, stage_info, hero_cat, log=lambda *a: None, sleep=time.sleep):
-    """Run all discoveries and APPLY the found offsets in-memory over the static offset classes.
-    Only overwrites a field when its signature was found; otherwise the static fallback stays.
+    """Discover all candidates, then apply them over the current in-memory offset values.
+    Missing signatures retain entry values, including prior attachments' discoveries.
+    Any exception (even final logging) restores all four entry values before propagating.
     The monster discoveries first wait (bounded, ~6 s max) through an inter-wave EMPTY list.
     Returns a dict of {field_name: (old, new, 'found'|'fallback')} for logging/diagnostics."""
-    report = {}
+    fields = ((Monster, "STAGE_KEY"), (UnitHealthController, "HP_MAX"),
+              (StageManager, "HERO_LIST"), (Unit, "CACHE"))
+    previous = tuple(getattr(cls, field) for cls, field in fields)
+    complete = False
+    try:
+        waited = _wait_for_monsters(reader, msm, sleep)
+        if waited:
+            log(f"[field-calib] monster list empty at attach (wave gap) — waited {waited} x "
+                f"{MONSTER_RETRY_INTERVAL}s for monsters")
+        # Discover everything before publishing anything. Missing signatures retain entry values.
+        sk = discover_stage_key(reader, msm, stage_info)
+        hpm = discover_hp_max(reader, msm)
+        hl, cache = discover_hero_list_and_cache(reader, sm_list, hero_cat)
+        report = {}
+        for (cls, field), old, new in zip(fields, previous, (sk, hpm, hl, cache), strict=True):
+            name = f"{cls.__name__}.{field}"
+            report[name] = (old, new, "found" if new else "fallback")
+            if new:
+                setattr(cls, field, new)
 
-    waited = _wait_for_monsters(reader, msm, sleep)
-    if waited:
-        log(f"[field-calib] monster list empty at attach (wave gap) — waited {waited} x "
-            f"{MONSTER_RETRY_INTERVAL}s for monsters")
-    sk = discover_stage_key(reader, msm, stage_info)
-    report["Monster.STAGE_KEY"] = (Monster.STAGE_KEY, sk, "found" if sk else "fallback")
-    if sk:
-        Monster.STAGE_KEY = sk
-
-    hpm = discover_hp_max(reader, msm)
-    report["UnitHealthController.HP_MAX"] = (UnitHealthController.HP_MAX, hpm, "found" if hpm else "fallback")
-    if hpm:
-        UnitHealthController.HP_MAX = hpm
-
-    hl, cache = discover_hero_list_and_cache(reader, sm_list, hero_cat)
-    report["StageManager.HERO_LIST"] = (StageManager.HERO_LIST, hl, "found" if hl else "fallback")
-    report["Unit.CACHE"] = (Unit.CACHE, cache, "found" if cache else "fallback")
-    if hl:
-        StageManager.HERO_LIST = hl
-    if cache:
-        Unit.CACHE = cache
-
-    for name, (old, new, status) in report.items():
-        if status == "found" and new != old:
-            log(f"[field-calib] {name}: 0x{old:X} -> 0x{new:X} (auto-discovered)")
-        elif status == "fallback":
-            log(f"[field-calib] {name}: kept static 0x{old:X} (signature not found live)")
-    return report
+        for name, (old, new, status) in report.items():
+            if status == "found" and new != old:
+                log(f"[field-calib] {name}: 0x{old:X} -> 0x{new:X} (auto-discovered)")
+            elif status == "fallback":
+                log(f"[field-calib] {name}: kept static 0x{old:X} (signature not found live)")
+        complete = True
+        return report
+    finally:
+        # Diagnostics are part of the transaction too; never leave a failed partial update.
+        if not complete:
+            for (cls, field), old in zip(fields, previous, strict=True):
+                setattr(cls, field, old)

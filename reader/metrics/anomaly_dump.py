@@ -79,7 +79,8 @@ class AnomalyDump:
 
     def on_run_close(self, *, run_id, outcome, mobs, total_mobs, duration, clear_time, stage_key):
         """Judge the run that just closed; if it trips a rule write the ring + a summary. Returns the ring
-        file path, or None when nothing was written. Never raises: an I/O error is logged and ignored."""
+        file path, or None if no complete dump was written. Published archives consume quota even
+        when the summary fails. Never raises: an I/O error is logged and ignored."""
         try:
             reason = trigger_reason(outcome, mobs, total_mobs, duration, clear_time)
             if reason is None or self._dumps >= self._max_dumps:
@@ -92,12 +93,13 @@ class AnomalyDump:
                 for tick in self._ring:
                     f.write(json.dumps(tick) + "\n")
             os.replace(tmp, ring_path)
+            # Publication consumes disk quota even if the metadata write fails.
+            self._dumps += 1
             meta = {"run_id": run_id, "outcome": outcome, "mobs": mobs, "total_mobs": total_mobs,
                     "duration": duration, "clear_time": clear_time, "stage_key": stage_key, "reason": reason,
                     "reader_version": self._reader_version, "hz": self._hz, "ticks": len(self._ring)}
             with open(os.path.join(anomalies, f"{run_id}.json"), "w", encoding="utf-8") as f:
                 json.dump(meta, f)       # written last: its presence marks a complete dump
-            self._dumps += 1
             return ring_path
         except Exception as e:
             diag(f"[anomaly] dump for run {run_id} failed: {type(e).__name__}: {e}")

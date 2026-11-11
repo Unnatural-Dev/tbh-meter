@@ -556,16 +556,16 @@ def _resolve_all(reader, pid, fp, cache_path, ga_base):
 def _autocalibrate_fields(reader, resolved, fp):
     """Auto-discover the four FRAGILE field offsets (Monster.STAGE_KEY, UnitHealthController.HP_MAX,
     StageManager.HERO_LIST, Unit.CACHE) by semantic signature and apply them in-memory over the static
-    offsets, which stay as the fallback. Runs after BOTH resolve paths so the offsets are correct
-    before any reading. Read-only; nothing is written to the game or disk. A signature not found live
-    (e.g. not in combat) simply keeps the static offset — never makes a working build worse."""
+    offsets, whose current values stay as the fallback (including earlier attachments' discoveries).
+    Runs after BOTH resolve paths, before carrier reads. Read-only; nothing is written to the game
+    or disk. Missing signatures retain previous values; calibration errors roll back to entry state."""
     try:
         from game import field_calib
         field_calib.calibrate(reader, resolved.msm, resolved.sm_list,
                               resolved.stage_info, resolved.hero_cat,
                               log=lambda m: (print(m), diag(m)))
     except Exception as e:
-        diag(f"[field-calib] skipped (error: {e}) — static offsets kept")
+        diag(f"[field-calib] skipped (error: {e}) — previous values retained")
 
 
 def prepare(reader, pid, fp, cache_path, output_dir, game_version, *, startup):
@@ -593,71 +593,68 @@ def prepare(reader, pid, fp, cache_path, output_dir, game_version, *, startup):
     stage_info, item_cat, hero_cat = resolved.stage_info, resolved.item_cat, resolved.hero_cat
     csd_list, psd_list, sm_list = resolved.csd_list, resolved.psd_list, resolved.sm_list
     gold_klass = resolved.gold_klass
-    if startup:
-        print(f"[ok] resolved in {time.time()-t0:.0f}s. stages={len(stage_info)} "
-              f"items-catalog={len(item_cat)} heroes-catalog={len(hero_cat)} "
-              f"PSD={len(psd_list)} CSD={len(csd_list)}.\n")
-        diag(f"[resolve] fp={fp} SM={len(sm_list)} PSD={len(psd_list)} CSD={len(csd_list)} "
-             f"gold={'ok' if gold_klass else 'None'} stages={len(stage_info)} "
-             f"items={len(item_cat)} heroes={len(hero_cat)}")
+
+    diag(f"[resolve] fp={fp} SM={len(sm_list)} PSD={len(psd_list)} CSD={len(csd_list)} "
+         f"gold={'ok' if gold_klass else 'None'} stages={len(stage_info)} "
+         f"items={len(item_cat)} heroes={len(hero_cat)}")
     if not resolved.complete:
-        if startup:
-            diag(f"[resolve] INCOMPLETE → abort (msm={bool(resolved.msm)} lm={bool(resolved.lm)} "
-                 f"sc={bool(resolved.sc_class)} sf={bool(resolved.sf_class)})")
+        diag(f"[resolve] INCOMPLETE → {'abort' if startup else 'retry'} "
+             f"(msm={bool(resolved.msm)} lm={bool(resolved.lm)} "
+             f"sc={bool(resolved.sc_class)} sf={bool(resolved.sf_class)})")
         return None
     csd = save.pick_live_csd(reader, csd_list, stage_info)
     sm = save.pick_live_sm(reader, sm_list, hero_cat)
-    # PR-1 preserves the startup-only gold re-check and extra diagnostics.
-    # PR-2 will deliberately give re-attach the same behavior, with its own live gate.
-    if startup:
-        print(f"[live party] StageManager {'ok' if sm else 'NOT found (no live party/xp)'}"
-              f" — {len(build.read_live_party(reader, sm, hero_cat))} heroes deployed.")
-        # infra-log: the pick decision in detail — candidates, REAL carriers vs ghosts (heroKey ok but not a
-        # catalog hero), which one was picked + a sample of ghosts. THIS was missing in the 1.00.13 debug:
-        # "carriers=0 picked=0x.. party_read=0" would have pointed at the cause on the spot.
-        _smd = build.describe_sm_candidates(reader, sm_list, sm, hero_cat)
-        diag(f"[party-pick] startup candidates={_smd['total']} hk-accept={_smd['hk_accept']} "
-             f"carriers={_smd['carriers']} picked={hex(_smd['picked']) if _smd['picked'] else None} "
-             f"party_read={len(build.read_live_party(reader, sm, hero_cat))}")
-        for _ga, _gh in _smd["ghosts"]:
-            diag(f"[party-pick]   ghost {hex(_ga)} heroes(hk,lvl,exp)={_gh}")
-        # infra-log: the SAVE pick — PSD (the build's gold/heroes source) and CSD (current stage). PSD None was
-        # the 1.00.12 bug (save offsets shifted → read_gold=0 → pick_live_psd None → run with no
-        # heroes/gold). Logging psd/gold/heroes here makes that failure mode visible.
-        _psd = save.pick_live_psd(reader, psd_list)
-        diag(f"[save-pick] psd_cands={len(psd_list)} psd={hex(_psd) if _psd else None} "
-             f"gold={save.read_gold(reader, _psd) if _psd else None} "
-             f"heroes={len(save.read_heroes(reader, _psd)) if _psd else 0}; "
-             f"csd_cands={len(csd_list)} csd={hex(csd) if csd else None}")
-        # Live gold: reads GoldEarn[SubKey1] from the LIVE AggregateManager, resolved by STRUCTURE (name-free,
-        # immune to the obfuscated name changing between builds; see metrics.gold). Reuses the cached klass if still
-        # valid (cheap); otherwise resolves. All the logic lives in gold.py — here we just call.
-        if not (gold_klass and combat_gold_klass_ok(reader, gold_klass)):
-            # §6 fallback: primary index (~ms, calibrated build) → value-scan fallback (~90s, no calib
-            # or index failed). resolve_combat_gold_klass_by_index already has the anti-poison gate (round-trip),
-            # so None = bad index/no calib → falls back to the value-scan, NEVER serves a wrong klass.
-            gold_klass = None
-            if tbase and idx_ut is not None:
-                gold_klass = resolve_combat_gold_klass_by_index(reader, tbase, idx_ut)
-            if not gold_klass:
-                gold_klass = resolve_combat_gold_klass(reader, psd_list)
-        if gold_klass:
-            print(f"[live gold] AggregateManager klass {hex(gold_klass)} — GoldEarn[SubKey1] live "
-                  f"(exact per-run, lag-free, excludes selling; immune to name drift)")
-        else:
-            print("[live gold] NOT resolved — combat gold from save (stale, fallback)")
-        # infra-log: resolved gold + live value (combat). klass=None or an absurd live (0 / 1.97T) =
-        # the gold source broke — historical gold bugs (value-scan catching frozen=0 or junk).
-        diag(f"[gold] klass={hex(gold_klass) if gold_klass else None} "
-             f"live={combat_gold_live(reader, gold_klass) if gold_klass else None}")
+    # Startup and re-attach run the SAME carrier/save/gold checks (a re-attach after a game relaunch
+    # used to keep a stale gold klass until a run self-healed); only the [party-pick] label differs.
+    print(f"[live party] StageManager {'ok' if sm else 'NOT found (no live party/xp)'}"
+          f" — {len(build.read_live_party(reader, sm, hero_cat))} heroes deployed.")
+    # infra-log: the pick decision in detail — candidates, REAL carriers vs ghosts (heroKey ok but not a
+    # catalog hero), which one was picked + a sample of ghosts. THIS was missing in the 1.00.13 debug:
+    # "carriers=0 picked=0x.. party_read=0" would have pointed at the cause on the spot.
+    _smd = build.describe_sm_candidates(reader, sm_list, sm, hero_cat)
+    label = "startup" if startup else "re-attach"
+    diag(f"[party-pick] {label} candidates={_smd['total']} hk-accept={_smd['hk_accept']} "
+         f"carriers={_smd['carriers']} picked={hex(_smd['picked']) if _smd['picked'] else None} "
+         f"party_read={len(build.read_live_party(reader, sm, hero_cat))}")
+    for _ga, _gh in _smd["ghosts"]:
+        diag(f"[party-pick]   ghost {hex(_ga)} heroes(hk,lvl,exp)={_gh}")
+    # infra-log: the SAVE pick — PSD (the build's gold/heroes source) and CSD (current stage). PSD None was
+    # the 1.00.12 bug (save offsets shifted → read_gold=0 → pick_live_psd None → run with no
+    # heroes/gold). Logging psd/gold/heroes here makes that failure mode visible.
+    _psd = save.pick_live_psd(reader, psd_list)
+    diag(f"[save-pick] psd_cands={len(psd_list)} psd={hex(_psd) if _psd else None} "
+         f"gold={save.read_gold(reader, _psd) if _psd else None} "
+         f"heroes={len(save.read_heroes(reader, _psd)) if _psd else 0}; "
+         f"csd_cands={len(csd_list)} csd={hex(csd) if csd else None}")
+    # Live gold: reads GoldEarn[SubKey1] from the LIVE AggregateManager, resolved by STRUCTURE (name-free,
+    # immune to the obfuscated name changing between builds; see metrics.gold). Reuses the cached klass if still
+    # valid (cheap); otherwise resolves. All the logic lives in gold.py — here we just call.
+    if not (gold_klass and combat_gold_klass_ok(reader, gold_klass)):
+        # §6 fallback: primary index (~ms, calibrated build) → value-scan fallback (~90s, no calib
+        # or index failed). resolve_combat_gold_klass_by_index already has the anti-poison gate (round-trip),
+        # so None = bad index/no calib → falls back to the value-scan, NEVER serves a wrong klass.
+        gold_klass = None
+        if tbase and idx_ut is not None:
+            gold_klass = resolve_combat_gold_klass_by_index(reader, tbase, idx_ut)
+        if not gold_klass:
+            gold_klass = resolve_combat_gold_klass(reader, psd_list)
+    if gold_klass:
+        print(f"[live gold] AggregateManager klass {hex(gold_klass)} — GoldEarn[SubKey1] live "
+              f"(exact per-run, lag-free, excludes selling; immune to name drift)")
     else:
-        _smd = build.describe_sm_candidates(reader, sm_list, sm, hero_cat)
-        diag(f"[party-pick] re-attach candidates={_smd['total']} "
-             f"hk-accept={_smd['hk_accept']} carriers={_smd['carriers']} "
-             f"picked={hex(_smd['picked']) if _smd['picked'] else None}")
+        print("[live gold] NOT resolved — combat gold from save (stale, fallback)")
+    # infra-log: resolved gold + live value (combat). klass=None or an absurd live (0 / 1.97T) =
+    # the gold source broke — historical gold bugs (value-scan catching frozen=0 or junk).
+    diag(f"[gold] klass={hex(gold_klass) if gold_klass else None} "
+         f"live={combat_gold_live(reader, gold_klass) if gold_klass else None}")
     # Live drop catalog (box keys/rates/cooldowns) for the app's chest features — once per resolve.
     write_drop_catalog(reader, output_dir, stage_info, game_version, resolved.catalog_instances)
     # Per-stage (WaveAmount, WaveMonsterAmount) for the Brevity-corrected mob total (game.waves).
     stage_waves = waves.read_stage_waves(reader, resolved.catalog_instances.get("StageInfoData"))
-    return AttachedState(**{**vars(resolved), "gold_klass": gold_klass},
-                         tbase=tbase, idx_ut=idx_ut, csd=csd, sm=sm, stage_waves=stage_waves)
+    attached = AttachedState(**{**vars(resolved), "gold_klass": gold_klass},
+                             tbase=tbase, idx_ut=idx_ut, csd=csd, sm=sm, stage_waves=stage_waves)
+    # The app treats this human fallback as ready: emit only after ALL preparation succeeds.
+    print(f"[ok] resolved in {time.time()-t0:.0f}s. stages={len(stage_info)} "
+          f"items-catalog={len(item_cat)} heroes-catalog={len(hero_cat)} "
+          f"PSD={len(psd_list)} CSD={len(csd_list)}.\n")
+    return attached

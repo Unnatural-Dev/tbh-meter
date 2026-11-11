@@ -109,7 +109,7 @@ def test_incomplete_resolution_returns_none_without_calibration(world, monkeypat
 
 
 @pytest.mark.parametrize("startup", [True, False])
-def test_startup_only_gold_recheck_and_diagnostics(world, monkeypatch, capsys, startup):
+def test_reattach_gets_startup_gold_recheck_and_diagnostics(world, monkeypatch, capsys, startup):
     lines = []
     monkeypatch.setattr(attach, "diag", lines.append)
     monkeypatch.setattr(attach, "combat_gold_klass_ok", lambda *a: False)
@@ -118,15 +118,58 @@ def test_startup_only_gold_recheck_and_diagnostics(world, monkeypatch, capsys, s
     monkeypatch.setattr(attach, "resolve_combat_gold_klass_by_index", lambda *a: next(answers))
     monkeypatch.setattr(attach, "resolve_combat_gold_klass", lambda *a: GOLD + 256)
     state = prepare(world, startup=startup)
-    assert state.gold_klass == (GOLD + 256 if startup else GOLD)
-    assert any("[party-pick] startup" in line for line in lines) is startup
-    assert any("[party-pick] re-attach" in line for line in lines) is not startup
-    assert any("[save-pick]" in line for line in lines) is startup
-    assert any("[gold]" in line for line in lines) is startup
+    # A stale klass is re-resolved on BOTH paths (re-attach used to keep it until a run self-healed).
+    assert state.gold_klass == GOLD + 256
+    label = "startup" if startup else "re-attach"
+    assert any(f"[party-pick] {label} candidates=" in line and "party_read=" in line for line in lines)
+    assert any("[save-pick]" in line for line in lines)
+    assert any("[gold]" in line for line in lines)
+    assert any(line.startswith("[resolve] fp=") for line in lines)
     stdout = capsys.readouterr().out
-    assert ("[live party]" in stdout) is startup
-    assert ("[live gold]" in stdout) is startup
+    assert "[ok] resolved in" in stdout
+    assert "[live party]" in stdout
+    assert "[live gold]" in stdout
     assert "[[STATUS]] ready" not in stdout and "[[STATUS]] searching" not in stdout
+
+
+@pytest.mark.parametrize("startup", [True, False])
+@pytest.mark.parametrize("case", ["incomplete", "resolution-error", "carrier-error", "gold-error", "complete"])
+def test_preparation_stdout_matches_supervisor_contract(world, monkeypatch, capsys, case, startup):
+    """The human ready fallback is a success signal, never a resolution-only signal.
+
+    The supervisor integration test consumes this same full stdout fixture; no copy
+    of its private parser is involved. A fixed clock makes elapsed diagnostics stable.
+    """
+    contract = json.loads((Path(__file__).parent / "fixtures" / "attachment-status.json")
+                          .read_text(encoding="utf-8"))
+    reader, _, inst, _, _ = world
+    monkeypatch.setattr(attach.time, "time", lambda: 1000.0)
+    if case == "incomplete":
+        inst["MonsterSpawnManager"] = []
+    elif case == "resolution-error":
+        def fail_resolution(*a, **k):
+            raise RuntimeError("resolution read failed")
+        monkeypatch.setattr(attach, "instances_of", fail_resolution)
+    elif case == "carrier-error":
+        original = reader.ri32
+
+        def read(a):
+            if a == CSD + CommonSaveData.CURRENT_STAGE_KEY:
+                raise RuntimeError("carrier read failed")
+            return original(a)
+        monkeypatch.setattr(reader, "ri32", read)
+    elif case == "gold-error":
+        def fail_gold(*a):
+            raise RuntimeError("gold read failed")
+        monkeypatch.setattr(attach, "combat_gold_klass_ok", fail_gold)
+
+    if case in ("carrier-error", "gold-error") or (case == "resolution-error" and startup):
+        with pytest.raises(RuntimeError, match="read failed"):
+            prepare(world, startup=startup)
+    else:
+        state = prepare(world, startup=startup)
+        assert (state is not None) == (case == "complete")
+    assert capsys.readouterr().out == contract[case]["stdout"]
 
 
 def test_two_prepares_keep_their_own_catalog_instances(world):
@@ -209,7 +252,8 @@ def test_calibration_uses_structure_when_value_scan_has_no_gold(world, monkeypat
     monkeypatch.setattr(attach, "gold_index_of_klass", lambda *a: pytest.fail("missing gold shortcut"))
     monkeypatch.setattr(attach, "gold_index_by_structure", lambda *a: 44)
     state = prepare(world, startup=False)
-    assert state.gold_klass is None
+    # The scan found no gold; the re-check recovers it via the freshly calibrated index.
+    assert state.gold_klass == GOLD
     assert state.idx_ut == 44
     assert json.loads(Path(cache).read_text())["calib"][FP]["idx_ut"] == 44
 
@@ -246,7 +290,7 @@ def test_prepare_exports_drop_catalog_from_this_attachment(world):
 
 
 @pytest.mark.parametrize("startup", [True, False])
-def test_ghost_diagnostics_are_startup_only(world, monkeypatch, startup):
+def test_ghost_diagnostics_on_both_paths(world, monkeypatch, startup):
     reader, _, inst, _, _ = world
     ghost = 0xD00000
     inst["StageManager"].insert(0, ghost)
@@ -260,7 +304,7 @@ def test_ghost_diagnostics_are_startup_only(world, monkeypatch, startup):
     state = prepare(world, startup=startup)
     assert state.sm == SM
     assert any("candidates=2 hk-accept=2 carriers=1" in line for line in lines)
-    assert any("[party-pick]   ghost 0xd00000" in line for line in lines) is startup
+    assert any("[party-pick]   ghost 0xd00000" in line for line in lines)
 
 def test_reattach_resolution_error_reports_incomplete_but_startup_raises(world, monkeypatch):
     def boom(*a):
@@ -292,6 +336,101 @@ def test_successful_scan_calibration_announces_fast_path(world, monkeypatch, cap
     Path(cache).unlink()
     prepare(world, startup=False)
     assert "fast path armed" in capsys.readouterr().out
+
+
+def _field_state():
+    return (Monster.STAGE_KEY, UnitHealthController.HP_MAX, StageManager.HERO_LIST, Unit.CACHE)
+
+
+def _moved_field_memory(world, monkeypatch):
+    from config.offsets import MonsterSpawnManager
+
+    reader = world[0]
+    ml, monster, hc = 0x110000, 0x120000, 0x130000
+    reader._mem.update({MSM + MonsterSpawnManager.MONSTER_LIST: ml, ml + List.SIZE: 1,
+                        monster + 0x444: 1001, monster + Unit.HEALTH_CONTROLLER: hc,
+                        hc + UnitHealthController.HP_CURRENT: 500.0, hc + 0x58: 900.0})
+    reader._lists[ml] = [monster]
+    monkeypatch.setattr(reader, "list_ptrs", lambda ptr, cap=600: list(reader.list_iter(ptr, cap)))
+    monkeypatch.setattr(reader, "read_struct",
+                        lambda addr, fmt: (reader._mem.get(addr, 0),), raising=False)
+    reader._mem[SM + 0x58] = reader._mem.pop(SM + StageManager.HERO_LIST)
+    reader._mem[0x420000 + 0x3A0] = reader._mem.pop(0x420000 + Unit.CACHE)
+
+
+@pytest.mark.parametrize("path", ["fast", "scan"])
+@pytest.mark.parametrize("startup", [True, False])
+def test_prepare_field_calibration_error_retains_previous_values(world, monkeypatch, path, startup):
+    """Real prepare -> resolution -> wrapper -> calibration must undo a late logging failure."""
+    _moved_field_memory(world, monkeypatch)
+    if path == "scan":
+        Path(scan_world(world, monkeypatch)).unlink()
+    before = _field_state()
+    lines = []
+
+    def diag(message):
+        lines.append(message)
+        if message.startswith("[field-calib] Unit.CACHE:"):
+            raise RuntimeError("final field diagnostic failed")
+
+    monkeypatch.setattr(attach, "diag", diag)
+    state = prepare(world, startup=startup)
+    assert isinstance(state, attach.AttachedState)
+    assert _field_state() == before
+    assert any("previous values retained" in line and "final field diagnostic failed" in line
+               for line in lines)
+    assert not any("static offsets kept" in line for line in lines)
+
+
+@pytest.mark.parametrize("changed_fp", [False, True])
+@pytest.mark.parametrize("calibration_fails", [False, True])
+def test_incomplete_prepare_retry_keeps_calibration_lifetime(world, monkeypatch,
+                                                            changed_fp, calibration_fails):
+    """Incomplete preparation is not a new offset lifetime, even across fingerprints."""
+    _moved_field_memory(world, monkeypatch)
+    Path(scan_world(world, monkeypatch)).unlink()
+    before = _field_state()
+    classes = world[1]
+    logs = classes["StageClearLog"]
+    classes["StageClearLog"] = set()
+    lines = []
+
+    def diag(message):
+        lines.append(message)
+        if calibration_fails and message.startswith("[field-calib] Unit.CACHE:"):
+            raise RuntimeError("calibration diagnostic failed")
+
+    monkeypatch.setattr(attach, "diag", diag)
+    assert prepare(world) is None
+    expected = before if calibration_fails else (0x444, 0x58, 0x58, 0x3A0)
+    assert _field_state() == expected
+    assert any(line.startswith("[field-calib]") for line in lines)
+    classes["StageClearLog"] = logs
+    # A later no-signal attachment keeps the prior successful transaction (or rolled-back entry).
+    world[0]._mem.clear()
+    world[0]._mem[List.SIZE] = 0
+    world[0]._lists.clear()
+    state = prepare(world, startup=False, fp="different-build" if changed_fp else FP)
+    assert isinstance(state, attach.AttachedState)
+    assert _field_state() == expected
+
+
+@pytest.mark.parametrize("startup", [True, False])
+def test_prepare_diagnostic_handler_failure_still_leaves_offsets_restored(world, monkeypatch, startup):
+    _moved_field_memory(world, monkeypatch)
+    before = _field_state()
+
+    def diag(message):
+        if message.startswith("[field-calib]"):
+            raise RuntimeError("diagnostic sink unavailable")
+
+    monkeypatch.setattr(attach, "diag", diag)
+    if startup:
+        with pytest.raises(RuntimeError, match="diagnostic sink unavailable"):
+            prepare(world)
+    else:
+        assert prepare(world, startup=False) is None
+    assert _field_state() == before
 
 
 def test_scan_without_fingerprint_skips_calibration_silently(world, monkeypatch, capsys):

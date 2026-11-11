@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
+import attachmentStatus from "../../../../reader/tests/fixtures/attachment-status.json";
 
 // Integration test for the reader supervisor's state machine. The win32 spawn/timer/IPC
 // path can't run on the dev Mac, so we mock the runtime edges (child_process, electron,
@@ -167,6 +168,89 @@ describe("reader supervisor", () => {
     expect(mod.getReaderStatus()).toBe("scanning");
 
     child.stdout.emit("data", Buffer.from("[[STATUS]] ready\n"));
+    expect(mod.getReaderStatus()).toBe("ready");
+  });
+});
+
+describe("reader supervisor — preparation stdout contract", () => {
+  it.each(Object.entries(attachmentStatus))("%s only advertises readiness after preparation", (_case, contract) => {
+    mod.startReader();
+    const child = lastChild();
+    child.stdout.emit("data", Buffer.from("[[STATUS]] resolving\n"));
+    expect(mod.getReaderStatus()).toBe("resolving");
+
+    // Python checks these full transcripts against real prepare() output. Feed every
+    // line through the actual child's stdout handler, not a copy of statusFromLine.
+    const lines = contract.stdout.split("\n").filter(Boolean);
+    lines.forEach((line, index) => {
+      child.stdout.emit("data", Buffer.from(`${line}\n`));
+      expect(mod.getReaderStatus()).toBe(index === lines.length - 1 ? contract.status : "resolving");
+    });
+    expect(mod.getReaderStatus()).toBe(contract.status);
+  });
+
+  describe.each([false, true])("reattachment (cold scan: %s)", (coldScan) => {
+    it.each(Object.entries(attachmentStatus))(
+      "%s clears stale readiness through recovery",
+      (_case, contract) => {
+        mod.startReader();
+        const child = lastChild();
+        child.stdout.emit("data", Buffer.from("[[STATUS]] ready\n"));
+        expect(mod.getReaderStatus()).toBe("ready");
+        const phases: string[] = [];
+        mod.readerEvents.on("status", (phase: string) => phases.push(phase));
+
+        // These lifecycle lines are emitted by meter_windows.run() around prepare().
+        child.stdout.emit(
+          "data",
+          Buffer.from(
+            "\n[game closed/restarted] reads failing — discarding run, re-attaching...\n",
+          ),
+        );
+        expect(mod.getReaderStatus()).toBe("searching");
+        vi.advanceTimersByTime(18_000); // no new process or output while the game is closed
+        expect(mod.getReaderStatus()).toBe("searching");
+        expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+        child.stdout.emit(
+          "data",
+          Buffer.from("[re-attaching] game came back (pid 2), re-resolving (~1-2min)...\n"),
+        );
+        expect(mod.getReaderStatus()).toBe("resolving");
+        if (coldScan) {
+          child.stdout.emit("data", Buffer.from("[[STATUS]] scanning\n"));
+          expect(mod.getReaderStatus()).toBe("scanning");
+        }
+
+        // Shared transcripts are checked against real prepare() output by Python.
+        // Incomplete/error preparation must never revive the previous ready state.
+        const pendingPhase = coldScan ? "scanning" : "resolving";
+        const lines = contract.stdout.split("\n").filter(Boolean);
+        lines.forEach((line, index) => {
+          child.stdout.emit("data", Buffer.from(`${line}\n`));
+          expect(mod.getReaderStatus()).toBe(
+            index === lines.length - 1 && contract.status === "ready" ? "ready" : pendingPhase,
+          );
+        });
+        expect(mod.getReaderStatus()).toBe(contract.status === "ready" ? "ready" : pendingPhase);
+        expect(phases).toEqual([
+          "searching",
+          "resolving",
+          ...(coldScan ? ["scanning"] : []),
+          ...(contract.status === "ready" ? ["ready"] : []),
+        ]);
+        expect(mockSpawn).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
+
+  it.each([
+    "[ok] resolved in 3s. stages=1 items-catalog=1 heroes-catalog=1 PSD=1 CSD=1.",
+    "Measuring per run",
+    "[ok] managers reused",
+  ])("keeps the older reader human fallback: %s", (line) => {
+    mod.startReader();
+    lastChild().stdout.emit("data", Buffer.from(`${line}\n`));
     expect(mod.getReaderStatus()).toBe("ready");
   });
 });

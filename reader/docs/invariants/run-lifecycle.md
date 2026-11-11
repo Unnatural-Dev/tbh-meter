@@ -60,11 +60,19 @@ guarded_by:
   - tests/test_run_boundary_rules.py::TestShouldAbandon::test_abandoned_close_uses_the_old_stage_key
   - tests/test_run_wiring.py::test_reattach_stamps_start_after_resolve_and_before_new_run_reads
   - tests/test_run_wiring.py::test_reattach_does_not_leak_interrupted_run_into_next_run
+  - tests/test_run_wiring.py::test_reattach_resolution_read_error_retries_and_resumes_real_output
+  - tests/test_run_wiring.py::test_reattach_carrier_read_error_after_resolution_escapes_run
+  - tests/test_run_wiring.py::test_startup_resolution_read_error_escapes_run
   - tests/test_run_wiring.py::test_abandoned_record_carries_ledger_mobs_damage_duration_and_old_stage
   - tests/test_run_wiring.py::test_success_close_emits_ledger_and_live_line_shows_pre_close_values
+  - tests/test_run_wiring.py::test_terminal_reload_then_missing_stable_or_increasing_count_keeps_next_ledger
+  - tests/test_run_wiring.py::test_terminal_reload_retains_baseline_for_fresh_post_grace_drop
+  - tests/test_run_wiring.py::test_repeated_terminal_logs_after_reload_close_separate_ledgers_once
+  - tests/test_run_wiring.py::test_reattach_after_terminal_reload_discards_old_counter_and_keeps_new_close
   - tests/test_run_wiring.py::test_anomaly_dump_flag_writes_the_ticks_of_an_overcounted_success
   - tests/test_run_wiring.py::test_without_the_flag_nothing_is_written_and_records_are_unchanged
   - tests/test_anomaly_dump.py::test_unknown_values_never_trigger
+  - tests/test_anomaly_dump.py::test_metadata_errors_still_count_published_archives_toward_the_cap
 ---
 
 # Run lifecycle
@@ -129,6 +137,22 @@ feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the pe
   puts in the record/summary, and starts the next run's ledger; `restart(now)` discards the run in
   progress at re-attach.
 
+### Caller ordering and transient reload observations
+
+`run()` feeds the dead count on **every tick**, including `None`, before log
+acquisition and abandonment decisions. Each observation replaces the transient
+reload decision; `None` clears that decision without replacing the cumulative
+baseline. A success/fail log coincident with a reload closes the current ledger,
+and `closed` suppresses the same tick's abandonment check. The next observation
+must happen before deciding whether to abandon the new ledger.
+
+`close()` does not promise to clear a pending reload decision for arbitrary callers
+that omit this observation step. The real caller regressions cover missing,
+stable and increasing next counts, repeated terminals, a fresh post-grace drop,
+and reattachment. This documents existing ordering, not a demonstrated overcount
+fix. Reattachment discards the interrupted ledger, reseeds the real log cursor,
+and resets the previous attachment's cumulative dead baseline.
+
 What does NOT move: closing on `StageClearLog`/`StageFailedLog` stays in the orchestrator's log scan (it
 needs the memory reads), and the run's other state (gold/xp/party/drops/deaths) stays in `new_run()`.
 A new end-of-run rule goes in the module (pure, testable), not inline in `run()` —
@@ -142,7 +166,8 @@ invalid), the raw live stage key, the dead count, and the log classes that close
 memory read. On each run close `trigger_reason` judges a SUCCESS: `mobs > total_mobs`, or `duration - clear_time > 5`
 (both known; an unknown input never triggers). A hit writes `<output>/anomalies/<run_id>.ticks.jsonl.gz` (the ring,
 which keeps rolling) plus `<run_id>.json` (outcome, counts, reason, reader version, hz). Capped per process
-(`MAX_DUMPS`); every I/O error is logged via `diag()` and swallowed. Pure module fed by `run()` — the rule lives
+(`MAX_DUMPS`): each published archive consumes a slot even if its summary fails to write.
+Every I/O error is logged via `diag()` and swallowed. Pure module fed by `run()` — the rule lives
 there, not inline ([[invariants/orchestration-purity]]); the flag never changes `raw/<id>.json`.
 
 ## Pending-close: the boss box arrives AFTER the clear (only the success WRITE is delayed)
@@ -236,6 +261,10 @@ Startup and re-attach obtain their classes, catalogs, carrier picks and gold han
 `game/attach.py::prepare`. A successful re-attach replaces that state wholesale before
 `rb.restart`, `new_run`, cursor seeding, and the dead-count baseline reset. Preparation does
 not own those transitions; the PSD per-run pick remains in `new_run()`.
+Re-attach calls preparation with `startup=False`: a resolution read error returns
+incomplete and the loop retries until valid preparation resumes run output. Startup
+resolution errors and errors after resolution (such as carrier reads) still propagate;
+retry must not widen into swallowing preparation failures.
 
 ## new_run() initializes ALL the per-run state
 

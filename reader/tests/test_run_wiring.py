@@ -4,12 +4,17 @@ hz=1 => one loop tick == 1 s of fake time."""
 import glob
 import json
 import os
+from typing import Any
 
 import pytest
 
 import meter_windows as mw
 from game import attach
 from metrics import run_boundary as rbm
+from tests import test_attach as attachment
+
+# Register the existing memory fixture here; it also restores calibrated offsets.
+attachment_world = attachment.world
 
 A, B = 101, 202
 STAGE_INFO = {A: (1, 1, 5, 0), B: (1, 2, 5, 0)}   # (act, stage, ?, diff)
@@ -31,7 +36,8 @@ class FakeReader:
         if 0x1100 + mw.Array.DATA <= a < 0x1100 + mw.Array.DATA + 8 * 64:
             return 0x9000 + (a - 0x1100 - mw.Array.DATA) // 8 * 0x100     # log entry object pointer
         if a >= 0x9000 and (a - 0x9000) % 0x100 == 0:
-            return SC                                                       # every entry is a StageClearLog
+            index = (a - 0x9000) // 0x100
+            return w.log_classes.get(index, SC)                             # default: StageClearLog
         if a == MSM + mw.MonsterSpawnManager.DEAD_MONSTER_LIST:
             return 0x2000
         return None
@@ -55,15 +61,17 @@ class World:
         self.t = 1000.0
         self.tick = 0
         self.events = []          # ordered log of RunBoundary calls + new_run reads
-        self.script = {}          # tick -> dict(key=, snap=, dead=, log=)
+        self.script: dict[int, dict[str, Any]] = {}  # tick -> key/snap/dead/log reads
         self.stop_after = 10
         self.last_log = 0
+        self.log_classes = {}     # log-entry index -> klass; unspecified entries are success
         self.live = {}            # tick -> live.json record
         self.diag = []            # diag() lines (run-close summary incl. partial=)
-        self.die_at = None        # tick at which the FIRST reader starts failing (None = never)
+        self.die_at: int | None = None  # tick at which the FIRST reader starts failing
 
 
-def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
+def _drive(monkeypatch, tmp_path, world, hz=1, *, reader_factory=FakeReader,
+           real_prepare=False, **run_kwargs):
     complete = attach.AttachedState(
         sc_class=SC, sf_class=SF, msm=MSM, lm=LM, csd_list=[CSD], psd_list=[0x60],
         stage_info=STAGE_INFO, item_cat={2: (1, 1, 1)}, hero_cat={3: 1}, sm_list=[0x70],
@@ -74,7 +82,7 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
     readers = []
 
     def make_reader(handle):
-        r = FakeReader(world, dies_at=world.die_at if not readers else None)   # only the 1st reader dies
+        r = reader_factory(world, dies_at=world.die_at if not readers else None)   # only the 1st reader dies
         readers.append(r)
         return r
     monkeypatch.setattr(mw, "Reader", make_reader)
@@ -87,7 +95,8 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
         if len(readers) > 1:              # a re-attach resolve takes ~90 s of wall clock
             world.t += 90.0
         return complete
-    monkeypatch.setattr(attach, "prepare", prepare)
+    if not real_prepare:
+        monkeypatch.setattr(attach, "prepare", prepare)
     monkeypatch.setattr(mw, "describe_reader_version", lambda: "test-ver")
     monkeypatch.setattr(mw, "diag", lambda *a, **k: world.diag.append(a[0] if a else ""))
     monkeypatch.setattr(mw, "_emit_status", lambda *a, **k: None)
@@ -132,6 +141,98 @@ def _drive(monkeypatch, tmp_path, world, hz=1, **run_kwargs):
     monkeypatch.setattr(mw.time, "sleep", sleep)
     mw.run(hz=hz, output_dir=str(tmp_path), debug=False, **run_kwargs)
     return readers
+
+
+def _prepared_restart(monkeypatch, tmp_path, attachment_world, failure, *, fail_at=2):
+    """Reuse prepare's memory fixture, with the existing clock/log script at its edges.
+
+    No replacement of prepare or _resolve_all: failures cross the real exception
+    boundary. The shared fixture restores all four process-global calibrated offsets.
+    """
+    memory, classes, instances, _, _ = attachment_world
+    classes["StageClearLog"] = {SC}
+    classes["StageFailedLog"] = {SF}
+    instances["MonsterSpawnManager"] = [MSM]
+    instances["LogManager"] = [LM]
+    (tmp_path / "resolve_cache.json").write_text(json.dumps({
+        "fmt": attach.CACHE_FMT, "calib": {"fp": attachment.CALIB}}), encoding="utf-8")
+    w = World()
+    w.die_at = 1
+    w.stop_after = 13
+    w.script = {t: dict(key=1001) for t in range(13)}
+    w.script[6] = dict(key=1001, snap=[_mob(1)])
+    w.script[7] = dict(key=1001, snap=[])
+    w.script[8] = dict(key=1001, log=1)
+    readers = []
+
+    class PreparedReader(attachment.Memory):
+        def __init__(self, world, dies_at):
+            super().__init__(memory._mem)
+            self.scripted = FakeReader(world, dies_at)
+            self.generation = len(readers) + 1
+            readers.append(self)
+
+        def rptr(self, a):
+            if (a in (LM + mw.LogManager.LOG_LIST, 0x1000 + mw.List.ITEMS,
+                      MSM + mw.MonsterSpawnManager.DEAD_MONSTER_LIST)
+                    or 0x1100 + mw.Array.DATA <= a < 0x1100 + mw.Array.DATA + 8 * 64
+                    or 0x9000 <= a < 0xD000):
+                return self.scripted.rptr(a)
+            return super().rptr(a)
+
+        def ri32(self, a):
+            if (failure == "carrier" and self.generation == fail_at
+                    and a == attachment.CSD + mw.CommonSaveData.CURRENT_STAGE_KEY):
+                raise RuntimeError("carrier read failed")
+            if a in (0x1000 + mw.List.SIZE, 0x2000 + mw.List.SIZE) or 0x9000 <= a < 0xD000:
+                return self.scripted.ri32(a)
+            return super().ri32(a)
+
+    backrefs = attach.instances_of
+
+    def read_instances(reader, *a, **k):
+        if failure == "resolution" and reader.generation == fail_at:
+            raise RuntimeError("resolution read failed")
+        return backrefs(reader, *a, **k)
+    monkeypatch.setattr(attach, "instances_of", read_instances)
+    return w, PreparedReader
+
+
+def test_reattach_resolution_read_error_retries_and_resumes_real_output(
+        monkeypatch, tmp_path, attachment_world, capsys):
+    w, reader = _prepared_restart(monkeypatch, tmp_path, attachment_world, "resolution")
+    _drive(monkeypatch, tmp_path, w, reader_factory=reader, real_prepare=True)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == ["success"]
+    assert _val(recs[0]["stageKey"]) == 1001
+    assert _val(recs[0]["mobs"]) == 1
+    assert _val(recs[0]["total_damage"]) == 100
+    assert recs[0]["duration"] == 2
+    assert w.live[7]["mobs"] == 1 and w.live[7]["damage_now"] == 100
+    assert w.live[7]["elapsed"] == 1
+    out = capsys.readouterr().out
+    assert out.count("[re-attaching] game came back") == 2
+    assert out.count("[ok] re-attached") == 1
+    assert "mobs 1/" in out
+
+
+def test_reattach_carrier_read_error_after_resolution_escapes_run(
+        monkeypatch, tmp_path, attachment_world, capsys):
+    w, reader = _prepared_restart(monkeypatch, tmp_path, attachment_world, "carrier")
+    with pytest.raises(RuntimeError, match="carrier read failed"):
+        _drive(monkeypatch, tmp_path, w, reader_factory=reader, real_prepare=True)
+    assert _records(tmp_path) == []
+    out = capsys.readouterr().out
+    assert out.count("[re-attaching] game came back") == 1
+    assert "[ok] re-attached" not in out
+
+
+def test_startup_resolution_read_error_escapes_run(monkeypatch, tmp_path, attachment_world):
+    w, reader = _prepared_restart(monkeypatch, tmp_path, attachment_world, "resolution", fail_at=1)
+    with pytest.raises(RuntimeError, match="resolution read failed"):
+        _drive(monkeypatch, tmp_path, w, reader_factory=reader, real_prepare=True)
+    assert _records(tmp_path) == []
+    assert w.live == {}
 
 
 def _records(tmp_path):
@@ -203,6 +304,110 @@ def test_reload_drop_in_dead_count_abandons_same_stage(monkeypatch, tmp_path):
     w.script[6] = dict(key=A, snap=[_mob(1)], dead=10)        # manual restart: counter drops by > 2, past the grace
     _drive(monkeypatch, tmp_path, w)
     assert [r["run_outcome"] for r in _records(tmp_path)] == ["abandoned"]
+
+
+@pytest.mark.parametrize("terminal_class,outcome", [(SC, "success"), (SF, "fail")])
+@pytest.mark.parametrize("next_dead", [None, 10, 50])
+def test_terminal_reload_then_missing_stable_or_increasing_count_keeps_next_ledger(
+        monkeypatch, tmp_path, terminal_class, outcome, next_dead):
+    """A terminal log wins over a coincident reload; each next observation clears it.
+
+    Keeping the prior reload flag on missing/non-decreasing reads would emit an
+    extra abandon after the grace and destroy the second run's ledger.
+    """
+    w = World()
+    w.stop_after = 14
+    w.log_classes = {0: terminal_class}
+    w.script = {t: dict(key=A, dead=50) for t in range(6)}
+    w.script[0]["snap"] = [_mob(1), _mob(2)]
+    w.script[6] = dict(key=A, dead=10, log=1)
+    w.script.update({t: dict(key=A, dead=next_dead) for t in range(7, 14)})
+    w.script[7]["snap"] = [_mob(3)]
+    _drive(monkeypatch, tmp_path, w)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == [outcome]
+    assert recs[0]["stageKey"]["ok"] and _val(recs[0]["stageKey"]) == A
+    assert recs[0]["mobs"]["ok"] and _val(recs[0]["mobs"]) == 2
+    assert _val(recs[0]["total_damage"]) == 200
+    assert recs[0]["duration"] == 6
+    assert w.live[6]["elapsed"] == 0 and w.live[6]["damage_now"] == 200
+    assert w.live[13]["elapsed"] == 7
+    assert w.live[13]["mobs"] == 1 and w.live[13]["damage_now"] == 100
+
+
+@pytest.mark.parametrize("terminal_class,outcome", [(SC, "success"), (SF, "fail")])
+def test_terminal_reload_retains_baseline_for_fresh_post_grace_drop(
+        monkeypatch, tmp_path, terminal_class, outcome):
+    """Clearing the cumulative baseline on close/None would miss the later reload."""
+    w = World()
+    w.stop_after = 15
+    w.log_classes = {0: terminal_class}
+    w.script = {t: dict(key=A, dead=50) for t in range(6)}
+    w.script[0]["snap"] = [_mob(1), _mob(2)]
+    w.script[6] = dict(key=A, dead=10, log=1)
+    w.script.update({t: dict(key=A, dead=None) for t in range(7, 11)})
+    w.script[7]["snap"] = [_mob(3)]
+    w.script.update({t: dict(key=A, dead=0) for t in range(11, 15)})
+    _drive(monkeypatch, tmp_path, w)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == [outcome, "abandoned"]
+    assert [_val(r["stageKey"]) for r in recs] == [A, A]
+    assert [_val(r["mobs"]) for r in recs] == [2, 1]
+    assert [_val(r["total_damage"]) for r in recs] == [200, 100]
+    assert [r["duration"] for r in recs] == [6, 5]
+    assert w.live[10]["elapsed"] == 4 and w.live[10]["mobs"] == 1
+    assert w.live[11]["elapsed"] == 0 and w.live[11]["mobs"] == 0
+    assert w.live[14]["elapsed"] == 3
+
+
+@pytest.mark.parametrize("classes,outcomes", [
+    ((SC, SF), ["success", "fail"]),
+    ((SF, SC), ["fail", "success"]),
+])
+def test_repeated_terminal_logs_after_reload_close_separate_ledgers_once(
+        monkeypatch, tmp_path, classes, outcomes):
+    """The real cursor must not replay retained terminals or carry old kills."""
+    w = World()
+    w.stop_after = 17
+    w.log_classes = dict(enumerate(classes))
+    w.script = {t: dict(key=A, dead=50 if t < 6 else 10) for t in range(17)}
+    w.script[0]["snap"] = [_mob(1), _mob(2)]
+    w.script[6]["log"] = 1
+    w.script[7]["snap"] = [_mob(3)]
+    w.script[12]["log"] = 2
+    _drive(monkeypatch, tmp_path, w)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == outcomes
+    assert [_val(r["stageKey"]) for r in recs] == [A, A]
+    assert [_val(r["mobs"]) for r in recs] == [2, 1]
+    assert [_val(r["total_damage"]) for r in recs] == [200, 100]
+    assert [r["duration"] for r in recs] == [6, 6]
+    assert w.live[16]["elapsed"] == 4 and w.live[16]["mobs"] == 0
+
+
+def test_reattach_after_terminal_reload_discards_old_counter_and_keeps_new_close(
+        monkeypatch, tmp_path):
+    """New attachment skips the old terminal and owns a fresh stage/ledger baseline."""
+    w = World()
+    w.die_at = 8
+    w.stop_after = 22
+    w.script = {t: dict(key=A, dead=50 if t < 6 else 10) for t in range(12)}
+    w.script[0]["snap"] = [_mob(1), _mob(2)]
+    w.script[6]["log"] = 1
+    w.script.update({t: dict(key=B, dead=None if t < 17 else 1) for t in range(12, 22)})
+    w.script[13]["snap"] = [_mob(3)]
+    w.script[18]["log"] = 2
+    readers = _drive(monkeypatch, tmp_path, w)
+    assert len(readers) == 2
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == ["success", "success"]
+    assert [_val(r["stageKey"]) for r in recs] == [A, B]
+    assert [_val(r["mobs"]) for r in recs] == [2, 1]
+    assert [_val(r["total_damage"]) for r in recs] == [200, 100]
+    assert [r["duration"] for r in recs] == [6, 6]
+    assert w.live[17]["elapsed"] == 5 and w.live[17]["mobs"] == 1
+
+
 def test_uncatalogued_live_key_is_not_adopted(monkeypatch, tmp_path):
     w = World()
     w.stop_after = 10
