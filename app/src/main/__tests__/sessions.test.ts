@@ -71,6 +71,26 @@ describe("deriveSessions — manual cuts (the 'New session' button)", () => {
     expect(m.get("a")).toBe(String(base));
     expect(m.get("b")).toBe(String(base)); // one session
   });
+
+  it("keeps cut boundaries and timestamp ties stable without mutating its inputs", () => {
+    const runs = [
+      Object.freeze({ id: "d", ts: base + 3 * H }),
+      Object.freeze({ id: "b", ts: base + H }),
+      Object.freeze({ id: "a", ts: base }),
+      Object.freeze({ id: "c", ts: base + H }),
+    ];
+    Object.freeze(runs);
+    const cuts = Object.freeze([base + 4 * H, base + H, base - H, base + H, base]);
+
+    expect([...deriveSessions(runs, cuts)]).toEqual([
+      ["a", String(base)],
+      ["b", String(base + H)],
+      ["c", String(base + H)],
+      ["d", String(base + H)],
+    ]);
+    expect(runs.map((run) => run.id)).toEqual(["d", "b", "a", "c"]);
+    expect(cuts).toEqual([base + 4 * H, base + H, base - H, base + H, base]);
+  });
 });
 
 describe("deriveSessions — determinism", () => {

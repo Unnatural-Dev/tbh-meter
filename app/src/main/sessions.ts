@@ -29,7 +29,6 @@ export interface SessionableRun {
  */
 export function deriveSessions(runs: SessionableRun[], cutsMs: readonly number[] = []): Map<string, string> {
   const sorted = [...runs].sort((a, b) => a.ts - b.ts);
-  const cuts = [...cutsMs].sort((a, b) => a - b);
   const out = new Map<string, string>();
   let label: string | null = null;
   let prevTs: number | null = null;
@@ -37,7 +36,7 @@ export function deriveSessions(runs: SessionableRun[], cutsMs: readonly number[]
     const gapBreak = prevTs !== null && run.ts - prevTs > SESSION_GAP_MS;
     // A cut "between" the previous run and this one (exclusive of prev, inclusive of this) opens a
     // new session at this run — the user pressed "New session" while idle before this run.
-    const cutBreak = prevTs !== null && cuts.some((c) => c > prevTs! && c <= run.ts);
+    const cutBreak = prevTs !== null && cutsMs.some((c) => c > prevTs! && c <= run.ts);
     if (label === null || gapBreak || cutBreak) label = String(run.ts);
     out.set(run.id, label);
     prevTs = run.ts;
