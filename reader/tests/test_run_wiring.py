@@ -126,9 +126,9 @@ def _drive(monkeypatch, tmp_path, world, hz=1, *, reader_factory=FakeReader,
             world.events.append(("restart", now))
             super().restart(now)
 
-        def close(self, now):
+        def close(self, now, **kwargs):
             world.events.append(("close", now))
-            return super().close(now)
+            return super().close(now, **kwargs)
     monkeypatch.setattr(mw, "RunBoundary", Spy)
     monkeypatch.setattr(mw.time, "time", lambda: world.t)
 
@@ -535,3 +535,34 @@ def test_incomplete_startup_attachment_reverts_splash_to_searching(monkeypatch, 
                for ln in capsys.readouterr().out.splitlines() if "[[STATUS]]" in ln]
     assert "ready" not in markers
     assert markers[-1] == "searching", markers
+
+
+@pytest.mark.parametrize("first_end,outcome,next_kills", [
+    ("fail", "fail", 1),            # the failed run's leftovers 1 and 2 are not kills (#28)
+    ("clear", "success", 3),        # after a clear or an abandon, the monsters still listed
+    ("switch", "abandoned", 3),     # are the next run's kills
+])
+def test_only_a_failed_close_keeps_its_listed_monsters_out_of_the_next_run(
+        monkeypatch, tmp_path, first_end, outcome, next_kills):
+    """Mobs 1 and 2 are still listed when the first run ends at tick 6 and leave before the next
+    run's first spawn (mob 4); the next run clears at tick 11."""
+    w = World()
+    w.stop_after = 13
+    w.script = {t: dict(key=A, snap=[_mob(1), _mob(2)]) for t in range(8)}
+    w.script[0]["snap"] = [_mob(1), _mob(2), _mob(3)]         # mob 3 dies in the first run
+    w.script.update({t: dict(key=A, snap=[]) for t in range(8, 13)})
+    w.script[8]["snap"] = [_mob(1)]                           # mob 2 leaves
+    w.script[10]["snap"] = [_mob(4)]                          # mob 1 left at 9; first spawn
+    if first_end == "switch":                                 # stage B past the grace: abandon
+        for t in range(6, 13):
+            w.script[t]["key"] = B
+        w.script[11]["log"] = 1                               # the clear is log entry 0
+    else:
+        w.log_classes = {0: SF if first_end == "fail" else SC}
+        w.script[6]["log"] = 1
+        w.script[11]["log"] = 2                               # entry 1 defaults to StageClearLog
+    _drive(monkeypatch, tmp_path, w)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == [outcome, "success"], w.events
+    assert [_val(r["mobs"]) for r in recs] == [1, next_kills]
+    assert [_val(r["total_damage"]) for r in recs] == [100, 300]   # leftovers' HP is still damage

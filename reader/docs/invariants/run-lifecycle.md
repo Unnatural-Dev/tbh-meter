@@ -54,10 +54,12 @@ guarded_by:
   - tests/test_raw_record.py::test_absorbed_boss_box_lands_inside_drops_envelope_without_shape_change
   - tests/test_log_scan.py::TestCapRotation::test_rotation_with_size_pinned_detects_new_tail_entry
   - tests/test_log_scan.py::TestClearThenBoxOrderingAcrossRotation::test_clear_then_box_separate_rotated_ticks
-  - tests/test_run_boundary.py::TestRecordedFailBoundaries::test_kills_and_damage_match_pre_refactor_meter
+  - tests/test_run_boundary.py::TestRecordedFailBoundaries::test_kills_and_damage_on_each_side_of_the_fail
   - tests/test_run_boundary_rules.py::TestReloadRule::test_tolerance_of_two
   - tests/test_run_boundary_rules.py::TestStageAdoption::test_does_not_readopt_at_or_after_grace
   - tests/test_run_boundary_rules.py::TestShouldAbandon::test_abandoned_close_uses_the_old_stage_key
+  - tests/test_run_boundary_rules.py::TestFailedRunLeftovers::test_leftovers_leaving_before_the_first_spawn_are_not_kills
+  - tests/test_run_wiring.py::test_only_a_failed_close_keeps_its_listed_monsters_out_of_the_next_run
   - tests/test_run_wiring.py::test_reattach_stamps_start_after_resolve_and_before_new_run_reads
   - tests/test_run_wiring.py::test_reattach_does_not_leak_interrupted_run_into_next_run
   - tests/test_run_wiring.py::test_reattach_resolution_read_error_retries_and_resumes_real_output
@@ -122,7 +124,10 @@ The orchestrator READS memory (monster snapshot, live stage key, `DeadMonsterUni
 feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the per-run ledger. It owns:
 
 - the ledger — a fresh `DpsTracker` per run: `kills`, `damage`, `dps(now)`, `peak_dps`, `alive`; an invalid
-  snapshot (`None`) leaves the state untouched;
+  snapshot (`None`) leaves the state untouched. After a FAILED run (`close(now, failed=True)`) the
+  monsters still listed go to the next ledger as leftovers: one that leaves before that run's first
+  own spawn is not a kill (its remaining HP still counts as damage), and the first spawn makes the
+  rest ordinary monsters. Clears, abandons and re-attach carry nothing (#28);
 - the run `start` and the adopted `stage_key`: the live stage is adopted while none is adopted yet, or
   during `ADOPT_GRACE` after the run starts (auto-replay/advance right after a clear); keys outside the
   catalog are never adopted;

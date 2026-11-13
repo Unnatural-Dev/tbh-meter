@@ -231,3 +231,54 @@ class TestLedger:
         rb.restart(50.0)
         assert rb.kills == 0 and rb.start == 50.0 and rb.stage_key is None
         assert rb.observe_dead_count(0) is True          # reset_dead_baseline is a separate call
+
+
+class TestFailedRunLeftovers:
+    """Monsters still listed when a run FAILS belong to the failed run (#28). One that leaves before
+    the next run's first own spawn is not that run's kill; the first spawn makes the rest ordinary
+    monsters. Their remaining HP still counts as damage."""
+
+    def _after_fail(self, *addrs):
+        rb = RunBoundary(now=0.0)
+        rb.observe_monsters([_mob(a, 100.0) for a in addrs], 0.5)
+        rb.close(1.0, failed=True)
+        rb.observe_monsters([_mob(a, 100.0) for a in addrs], 1.1)   # still listed after the close
+        return rb
+
+    def test_leftovers_leaving_before_the_first_spawn_are_not_kills(self):
+        rb = self._after_fail(1, 2)
+        rb.observe_monsters([_mob(2, 100.0)], 1.2)
+        rb.observe_monsters([], 1.3)
+        assert rb.kills == 0
+        assert rb.damage == 200.0
+
+    def test_leftover_still_listed_at_the_first_spawn_counts_when_it_dies(self):
+        rb = self._after_fail(1)
+        rb.observe_monsters([_mob(1, 100.0), _mob(3, 100.0)], 1.2)   # the next run's first spawn
+        rb.observe_monsters([_mob(3, 100.0)], 1.3)
+        assert rb.kills == 1
+
+    def test_leftover_leaving_on_the_first_spawn_tick_is_not_a_kill(self):
+        rb = self._after_fail(1)
+        rb.observe_monsters([_mob(3, 100.0)], 1.2)
+        rb.observe_monsters([], 1.3)
+        assert rb.kills == 1                                         # mob 3 only
+
+    def test_address_reused_after_the_leftover_left_is_a_new_monster(self):
+        rb = self._after_fail(1)
+        rb.observe_monsters([], 1.2)                                 # the leftover leaves
+        rb.observe_monsters([_mob(1, 100.0)], 1.3)                   # pooled address, new spawn
+        rb.observe_monsters([], 1.4)
+        assert rb.kills == 1
+
+    @pytest.mark.parametrize("end", [
+        lambda rb: rb.close(1.0, failed=False),
+        lambda rb: rb.restart(1.0),
+    ], ids=["clear-or-abandon", "re-attach"])
+    def test_only_a_failed_close_carries_leftovers(self, end):
+        rb = RunBoundary(now=0.0)
+        rb.observe_monsters([_mob(1, 100.0)], 0.5)
+        end(rb)
+        rb.observe_monsters([_mob(1, 100.0)], 1.1)
+        rb.observe_monsters([], 1.2)
+        assert rb.kills == 1

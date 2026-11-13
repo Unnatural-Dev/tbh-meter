@@ -6,7 +6,8 @@ It owns, for the run in progress:
   - the run's start time and the stage it is attributed to (adopted during a short grace window);
   - the reload rule (DeadMonsterUnit count dropping => manual restart of the same stage) and the
     switch rule (live stage key differs from the adopted one => stage switched);
-  - close(now): freeze the run into an immutable ClosedRun and start the next run's ledger.
+  - close(now): freeze the run into an immutable ClosedRun and start the next run's ledger; after
+    a FAILED run, the monsters still listed go to the next ledger as leftovers, not kills.
 
 What stays with the orchestrator (it needs memory): reading the snapshot / stage key / dead count,
 and the LOG_LIST scan that closes a run on StageClearLog / StageFailedLog (see
@@ -36,8 +37,8 @@ class RunBoundary:
         self._reloaded = False
         self._begin(now)
 
-    def _begin(self, now: float) -> None:
-        self._dps = DpsTracker()
+    def _begin(self, now: float, leftovers=()) -> None:
+        self._dps = DpsTracker(leftovers=leftovers)
         self._start = now
         self._adopt_until = now + ADOPT_GRACE
         self._stage_key: int | None = None
@@ -112,11 +113,13 @@ class RunBoundary:
         return self._reloaded or switched
 
     # ---- boundary --------------------------------------------------------------------------
-    def close(self, now: float) -> ClosedRun:
-        """Freeze the run in progress and start the next one's ledger at `now`."""
+    def close(self, now: float, *, failed: bool = False) -> ClosedRun:
+        """Freeze the run in progress and start the next one's ledger at `now`. After a FAILED run
+        the monsters still listed are its leftovers: the next ledger does not count them as kills
+        if they leave before its first spawn."""
         closed = ClosedRun(kills=self.kills, damage=self.damage,
                            measured=now - self._start, stage_key=self._stage_key)
-        self._begin(now)
+        self._begin(now, self._dps.listed if failed else ())
         return closed
 
     def restart(self, now: float) -> None:
