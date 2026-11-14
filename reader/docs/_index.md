@@ -25,6 +25,7 @@ How it works and how to maintain it: [README](README.md).
 - ObscuredFloat / per-hero runtime stats / `EHeroType` / wrong hero class → [[invariants/obscured-data-offlimits]]
 - run <30s doesn't count / x-10 / partial capture → [[invariants/run-lifecycle]]
 - chest/blue chest on the wrong or next run / drop after the clear / boss box on an abandoned run → [[invariants/run-lifecycle]]
+- kills above the stage total on a clear after a fail (591/589) → [[invariants/run-lifecycle]]
 - normalize a field in the app / `undefined` field in the app / dedup → [[invariants/app-normalization]]
 - where the offset lives / constant in the wrong file / two sources of truth → [[invariants/offsets-single-source]]
 - where to put a new metric / inline read in the orchestrator → [[invariants/orchestration-purity]]

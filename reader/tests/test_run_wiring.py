@@ -126,9 +126,9 @@ def _drive(monkeypatch, tmp_path, world, hz=1, *, reader_factory=FakeReader,
             world.events.append(("restart", now))
             super().restart(now)
 
-        def close(self, now):
+        def close(self, now, **kwargs):
             world.events.append(("close", now))
-            return super().close(now)
+            return super().close(now, **kwargs)
     monkeypatch.setattr(mw, "RunBoundary", Spy)
     monkeypatch.setattr(mw.time, "time", lambda: world.t)
 
@@ -535,3 +535,31 @@ def test_incomplete_startup_attachment_reverts_splash_to_searching(monkeypatch, 
                for ln in capsys.readouterr().out.splitlines() if "[[STATUS]]" in ln]
     assert "ready" not in markers
     assert markers[-1] == "searching", markers
+
+
+@pytest.mark.parametrize("log_classes,log_ticks,stage_from_6,outcome,next_kills", [
+    ({0: SF}, (6, 11), A, "fail", 1),        # leftovers 1 and 2 are not kills (#28)
+    ({0: SC}, (6, 11), A, "success", 3),     # after a clear or an abandon, mobs 1 and 2
+    ({}, (11,), B, "abandoned", 3),          # are the next run's kills
+])
+def test_only_a_failed_close_keeps_its_listed_monsters_out_of_the_next_run(
+        monkeypatch, tmp_path, log_classes, log_ticks, stage_from_6, outcome, next_kills):
+    """Mobs 1 and 2 are still listed when the first run ends at tick 6 and leave before the next
+    run's first spawn (mob 4); the next run clears at tick 11."""
+    w = World()
+    w.stop_after = 13
+    w.script = {t: dict(key=A, snap=[_mob(1), _mob(2)]) for t in range(8)}
+    w.script[0]["snap"] = [_mob(1), _mob(2), _mob(3)]         # mob 3 dies in the first run
+    w.script.update({t: dict(key=A, snap=[]) for t in range(8, 13)})
+    w.script[8]["snap"] = [_mob(1)]                           # mob 2 leaves
+    w.script[10]["snap"] = [_mob(4)]                          # mob 1 left at 9; first spawn
+    w.log_classes = log_classes                               # unlisted entries: StageClearLog
+    for size, t in enumerate(log_ticks, start=1):
+        w.script[t]["log"] = size                             # LOG_LIST grows at tick t
+    for t in range(6, 13):
+        w.script[t]["key"] = stage_from_6                     # B past the grace: abandoned at 6
+    _drive(monkeypatch, tmp_path, w)
+    recs = _records(tmp_path)
+    assert [r["run_outcome"] for r in recs] == [outcome, "success"], w.events
+    assert [_val(r["mobs"]) for r in recs] == [1, next_kills]
+    assert [_val(r["total_damage"]) for r in recs] == [100, 300]   # leftovers' HP is still damage

@@ -16,6 +16,8 @@ symptoms:
   - "boss box wrong run"
   - "chest credited to next run"
   - "drop after clear"
+  - "kills above stage total after a fail"
+  - "overcount after a failed run"
 code_anchors:
   - meter_windows.py::new_run
   - meter_windows.py::close_run
@@ -37,6 +39,7 @@ code_anchors:
   - metrics/run_boundary.py::RunBoundary.should_abandon
   - metrics/run_boundary.py::ADOPT_GRACE
   - metrics/run_boundary.py::RELOAD_TOLERANCE
+  - metrics/dps.py::DpsTracker
   - metrics/anomaly_dump.py::AnomalyDump
   - metrics/anomaly_dump.py::trigger_reason
   - config/offsets.py::LogManager.LOG_LIST
@@ -54,10 +57,12 @@ guarded_by:
   - tests/test_raw_record.py::test_absorbed_boss_box_lands_inside_drops_envelope_without_shape_change
   - tests/test_log_scan.py::TestCapRotation::test_rotation_with_size_pinned_detects_new_tail_entry
   - tests/test_log_scan.py::TestClearThenBoxOrderingAcrossRotation::test_clear_then_box_separate_rotated_ticks
-  - tests/test_run_boundary.py::TestRecordedFailBoundaries::test_kills_and_damage_match_pre_refactor_meter
+  - tests/test_run_boundary.py::TestRecordedFailBoundaries::test_kills_and_damage_on_each_side_of_the_fail
   - tests/test_run_boundary_rules.py::TestReloadRule::test_tolerance_of_two
   - tests/test_run_boundary_rules.py::TestStageAdoption::test_does_not_readopt_at_or_after_grace
   - tests/test_run_boundary_rules.py::TestShouldAbandon::test_abandoned_close_uses_the_old_stage_key
+  - tests/test_run_boundary_rules.py::TestFailedRunLeftovers::test_leftovers_leaving_before_the_first_spawn_are_not_kills
+  - tests/test_run_wiring.py::test_only_a_failed_close_keeps_its_listed_monsters_out_of_the_next_run
   - tests/test_run_wiring.py::test_reattach_stamps_start_after_resolve_and_before_new_run_reads
   - tests/test_run_wiring.py::test_reattach_does_not_leak_interrupted_run_into_next_run
   - tests/test_run_wiring.py::test_reattach_resolution_read_error_retries_and_resumes_real_output
@@ -122,7 +127,11 @@ The orchestrator READS memory (monster snapshot, live stage key, `DeadMonsterUni
 feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the per-run ledger. It owns:
 
 - the ledger — a fresh `DpsTracker` per run: `kills`, `damage`, `dps(now)`, `peak_dps`, `alive`; an invalid
-  snapshot (`None`) leaves the state untouched;
+  snapshot (`None`) leaves the state untouched. After a FAILED run (`close(now, failed=True)`) the
+  monsters still listed go to the next ledger as leftovers: one that leaves before that run's first
+  own spawn is not a kill (its remaining HP still counts as damage), and the first spawn makes the
+  rest ordinary monsters; a leftover no longer listed alive has left, and its address is a new
+  monster's. Clears, abandons and re-attach carry nothing (#28);
 - the run `start` and the adopted `stage_key`: the live stage is adopted while none is adopted yet, or
   during `ADOPT_GRACE` after the run starts (auto-replay/advance right after a clear); keys outside the
   catalog are never adopted;
@@ -133,9 +142,9 @@ feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the pe
 - the **switch** rule and the abandon decision (`should_abandon`): once past the grace and with a stage
   adopted, `reload OR (live key is another catalogued stage)`. The orchestrator evaluates it only on a tick
   where no log closed the run, and closes with the OLD `stage_key`;
-- `close(now)` — returns the immutable `ClosedRun` (kills, damage, measured, stage_key) that `close_run`
-  puts in the record/summary, and starts the next run's ledger; `restart(now)` discards the run in
-  progress at re-attach.
+- `close(now, failed=False)` — returns the immutable `ClosedRun` (kills, damage, measured, stage_key)
+  that `close_run` puts in the record/summary, and starts the next run's ledger (holding the failed
+  run's leftovers when `failed`); `restart(now)` discards the run in progress at re-attach.
 
 ### Caller ordering and transient reload observations
 

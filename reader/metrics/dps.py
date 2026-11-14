@@ -14,6 +14,10 @@ Cases handled:
     next good read are not counted dead twice.
   - unreadable / non-finite HP for one monster (None, NaN, inf): carry its previous HP
     forward; a bad read is not a death.
+  - leftovers of a FAILED run (given by RunBoundary): one that leaves before this run's first
+    own spawn is not a kill, though its remaining HP still counts as damage; the first spawn
+    makes the rest ordinary monsters. A leftover no longer listed alive (gone, or listed dead)
+    has left, and its address then belongs to a new monster; a bad HP read is not leaving.
 """
 
 import math
@@ -22,13 +26,14 @@ from shared.utils import RollingWindow, now
 
 
 class DpsTracker:
-    def __init__(self, window_seconds: float = 5.0):
+    def __init__(self, window_seconds: float = 5.0, leftovers=()):
         self._window = RollingWindow(window_seconds)
         self._last_hp: dict[int, float] = {}   # monster addr -> last HP seen
         self.total_damage: float = 0.0         # run accumulator
         self.peak_dps: float = 0.0
         self.alive: int = 0                     # mobs alive on the last VALID tick
         self.total_kills: int = 0               # run accumulator: monster identities that died
+        self._leftovers: set[int] = set(leftovers)   # a failed run's monsters still listed
 
     def update(self, monsters, timestamp: float | None = None) -> None:
         """`monsters` = iterable of (addr, current_hp, hp_max) tuples for the live mobs
@@ -40,6 +45,8 @@ class DpsTracker:
             current: dict[int, float] = {}
             damage = 0.0
             kills = 0
+            spawned = False
+            unread: set[int] = set()        # listed with a bad HP read, never seen before
 
             for addr, hp, *_ in monsters:
                 prev = self._last_hp.get(addr)
@@ -47,10 +54,14 @@ class DpsTracker:
                     # bad HP read: a known monster stays alive at its last HP; an unknown one waits
                     if prev is not None:
                         current[addr] = prev
+                    else:
+                        unread.add(addr)
                     continue
                 if hp <= 0:
                     continue            # dead this tick -> counted by the "gone" pass below
                 current[addr] = hp
+                if prev is None and addr not in self._leftovers:
+                    spawned = True          # a monster of this run appeared
                 if prev is not None and hp < prev:
                     damage += (prev - hp)   # took damage
 
@@ -58,7 +69,12 @@ class DpsTracker:
             for addr, prev_hp in self._last_hp.items():
                 if addr not in current and prev_hp > 0:
                     damage += prev_hp
-                    kills += 1
+                    if addr not in self._leftovers:     # a failed run's leftover leaving: no kill
+                        kills += 1
+            if spawned:
+                self._leftovers.clear()     # this run has begun: what is still listed is its own
+            elif self._leftovers:           # a leftover no longer listed alive has left
+                self._leftovers &= current.keys() | unread
 
             self._last_hp = current
             self.alive = len(current)
@@ -70,6 +86,11 @@ class DpsTracker:
         dps = self.dps(ts)
         if dps > self.peak_dps:
             self.peak_dps = dps
+
+    @property
+    def alive_addrs(self) -> frozenset[int]:
+        """Addresses of the monsters alive on the last valid tick (`alive` counts them)."""
+        return frozenset(self._last_hp)
 
     def dps(self, timestamp: float | None = None) -> float:
         """Smoothed DPS (damage in the window / window size)."""
@@ -84,3 +105,4 @@ class DpsTracker:
         self.peak_dps = 0.0
         self.alive = 0
         self.total_kills = 0
+        self._leftovers.clear()

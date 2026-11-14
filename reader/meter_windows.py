@@ -600,8 +600,9 @@ def run(hz, output_dir, debug=False, anomaly_dump=False):
             else:
                 wave_now = reader.ri32(e + StageFailedLog.NOW_WAVE)
                 wave_tot = reader.ri32(e + StageFailedLog.TOTAL_WAVE)
-        # Freeze the run's ledger (kills/damage/duration) and start the next one (rb.close).
-        ended = rb.close(time.time())
+        # Freeze the run's ledger (kills/damage/duration) and start the next one (rb.close); a
+        # failed run's monsters still listed are leftovers of it, not the next run's kills (#28).
+        ended = rb.close(time.time(), failed=status == "fail")
         measured = ended.measured
         # The reader emits EVERY run — short/partial included ("skip ≠ vanish", otherwise the user thinks the
         # meter broke). What decides what COUNTS (15s floor exc. x-10) is the CONVERTER (app), applying
