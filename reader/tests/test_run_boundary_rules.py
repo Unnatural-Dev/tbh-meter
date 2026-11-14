@@ -282,3 +282,23 @@ class TestFailedRunLeftovers:
         rb.observe_monsters([_mob(1, 100.0)], 1.1)
         rb.observe_monsters([], 1.2)
         assert rb.kills == 1
+
+    @pytest.mark.parametrize("first_tick", [[], [_mob(1, 0.0)]], ids=["gone", "listed-dead"])
+    def test_leftover_not_alive_on_the_first_tick_frees_its_address(self, first_tick):
+        rb = RunBoundary(now=0.0)
+        rb.observe_monsters([_mob(1, 100.0)], 0.5)
+        rb.close(1.0, failed=True)
+        rb.observe_monsters(first_tick, 1.1)                         # the leftover already left
+        rb.observe_monsters([_mob(1, 100.0)], 1.2)                   # pooled address, new spawn
+        rb.observe_monsters([], 1.3)
+        assert rb.kills == 1
+
+    def test_unreadable_leftover_is_still_a_leftover(self):
+        rb = RunBoundary(now=0.0)
+        rb.observe_monsters([_mob(1, 100.0)], 0.5)
+        rb.close(1.0, failed=True)
+        rb.observe_monsters([_mob(1, None)], 1.1)                    # a bad read is not leaving
+        rb.observe_monsters([_mob(1, 80.0)], 1.2)
+        rb.observe_monsters([], 1.3)
+        assert rb.kills == 0
+        assert rb.damage == 80.0

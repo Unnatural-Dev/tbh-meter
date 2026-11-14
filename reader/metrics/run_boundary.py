@@ -119,7 +119,7 @@ class RunBoundary:
         if they leave before its first spawn."""
         closed = ClosedRun(kills=self.kills, damage=self.damage,
                            measured=now - self._start, stage_key=self._stage_key)
-        self._begin(now, self._dps.listed if failed else ())
+        self._begin(now, self._dps.alive_addrs if failed else ())
         return closed
 
     def restart(self, now: float) -> None:

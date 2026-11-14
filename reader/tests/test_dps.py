@@ -223,6 +223,13 @@ class TestDpsTrackerReset:
         t.reset()
         assert t.peak_dps == 0.0
 
+    def test_reset_forgets_failed_run_leftovers(self):
+        t = DpsTracker(leftovers={1})
+        t.reset()
+        t.update([mob(1, 100.0)], timestamp=0.0)
+        t.update([], timestamp=0.1)
+        assert t.total_kills == 1                 # mob 1 is this run's monster again
+
 
 class TestDpsTrackerPeak:
     def test_peak_not_overwritten_by_lower_dps(self):

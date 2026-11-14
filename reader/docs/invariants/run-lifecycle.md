@@ -16,6 +16,8 @@ symptoms:
   - "boss box wrong run"
   - "chest credited to next run"
   - "drop after clear"
+  - "kills above stage total after a fail"
+  - "overcount after a failed run"
 code_anchors:
   - meter_windows.py::new_run
   - meter_windows.py::close_run
@@ -37,6 +39,7 @@ code_anchors:
   - metrics/run_boundary.py::RunBoundary.should_abandon
   - metrics/run_boundary.py::ADOPT_GRACE
   - metrics/run_boundary.py::RELOAD_TOLERANCE
+  - metrics/dps.py::DpsTracker
   - metrics/anomaly_dump.py::AnomalyDump
   - metrics/anomaly_dump.py::trigger_reason
   - config/offsets.py::LogManager.LOG_LIST
@@ -127,7 +130,8 @@ feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the pe
   snapshot (`None`) leaves the state untouched. After a FAILED run (`close(now, failed=True)`) the
   monsters still listed go to the next ledger as leftovers: one that leaves before that run's first
   own spawn is not a kill (its remaining HP still counts as damage), and the first spawn makes the
-  rest ordinary monsters. Clears, abandons and re-attach carry nothing (#28);
+  rest ordinary monsters; a leftover no longer listed alive has left, and its address is a new
+  monster's. Clears, abandons and re-attach carry nothing (#28);
 - the run `start` and the adopted `stage_key`: the live stage is adopted while none is adopted yet, or
   during `ADOPT_GRACE` after the run starts (auto-replay/advance right after a clear); keys outside the
   catalog are never adopted;
@@ -138,9 +142,9 @@ feeds the observations to ONE `RunBoundary`; the module DECIDES and keeps the pe
 - the **switch** rule and the abandon decision (`should_abandon`): once past the grace and with a stage
   adopted, `reload OR (live key is another catalogued stage)`. The orchestrator evaluates it only on a tick
   where no log closed the run, and closes with the OLD `stage_key`;
-- `close(now)` — returns the immutable `ClosedRun` (kills, damage, measured, stage_key) that `close_run`
-  puts in the record/summary, and starts the next run's ledger; `restart(now)` discards the run in
-  progress at re-attach.
+- `close(now, failed=False)` — returns the immutable `ClosedRun` (kills, damage, measured, stage_key)
+  that `close_run` puts in the record/summary, and starts the next run's ledger (holding the failed
+  run's leftovers when `failed`); `restart(now)` discards the run in progress at re-attach.
 
 ### Caller ordering and transient reload observations
 
